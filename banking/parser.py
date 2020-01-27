@@ -1,0 +1,241 @@
+#!/usr/bin/env python3
+
+import datetime
+import os
+from collections import defaultdict
+import logging
+
+_registry = {}
+
+
+def _register_parser(target_class):
+    """Adds class to the internal Parser registery."""
+
+    _registry[target_class.__name__] = target_class
+
+
+class ParserFactory(object):
+    """Creates Parser objects given ASCII files.
+
+    Looks up available Parsers in the local registery to match the filename to Parser.
+    """
+
+    def __init__(self, logger=None):
+        """Initializer."""
+
+        self._logger = logger or logging.getLogger(__name__)
+        self._institution_to_parsers = self._map_parsers()
+
+        for bank, parser_list in self._institution_to_parsers.items():
+            self._logger.info(" '{}' has {} parsers".format(bank, len(parser_list)))
+
+    @classmethod
+    def _map_parsers(cls):
+        """Dict of name of bank to iterable of Parsers.
+
+        Requires caller to import all relevant Parser sub classes prior to invoking.
+        """
+
+        parser_dict = defaultdict(list)
+        for parser_name, parser_class in _registry.items():
+            if parser_class.INSTITUTION == str.lower(str(None)):
+                continue
+            parser_dict[parser_class.INSTITUTION].append(parser_class)
+        return parser_dict
+
+    @classmethod
+    def name_to_keys(cls, filepath):
+        """Return various identifiers from the transaction history filename.
+
+        Expects '<bank>_<account>_<date_0>-<date_1>.<ext>'.
+        """
+
+        bank, account, date = cls.parse_path(filepath)
+        date0, date1 = Parser.parse_date(date)
+
+        return bank, account, date0, date1
+
+    @staticmethod
+    def parse_path(filepath):
+        """Return various identifiers from the transaction history filename.
+
+        Expects '<bank>_<account>_<date>.<ext>'.
+        """
+
+        base = os.path.basename(str(filepath))
+        filename, ext = os.path.splitext(base)
+        fields = filename.split('_')
+        try:
+            bank, account, date = fields
+        except ValueError as verr:
+            msg = (" expected bank, account, date '_' delimited fields in filename; {}"
+                    .format(filepath))
+            raise ValueError(msg)
+
+        return bank, account, date
+
+    def _filter_parsers(self, parsers, date0, date1):
+        """Filter the parser iterable for the time frame."""
+
+        valid_parsers = [p for p in parsers if p.is_date_valid(date0, date1)]
+        if len(valid_parsers) > 1:
+            msg = ("more than one parser exists for {} between {}...{}"
+                   .format(institution, date0, date1))
+            logger.error(msg)
+            msg = ("these parsers overlap in time and are ambiguous: {}"
+                   .format(valid_parsers))
+            logger.info(msg)
+            return None
+        return valid_parsers[0] if valid_parsers else None
+
+    def from_file(self, filepath):
+        """Parser from filepath."""
+
+        self._logger.debug("from_file:  {}".format(filepath))
+        bank, account, date0, date1 = self.name_to_keys(filepath)
+        parsers = self._institution_to_parsers[str.lower(bank)]
+        parser = self._filter_parsers(parsers, date0, date1)
+        if not parser:
+            self._logger.warning("no valid parser for:  {}".format(filepath))
+        return parser
+
+    def from_directory(self, root):
+        """Yield parsers for a directory."""
+
+        self._logger.info(" extracting parsers from {}".format(root))
+        paths_ = (p for p in os.scandir(root) if os.path.isfile(p))
+        paths = (p.path for p in paths_)  # posix.DirEntry --> str
+        parsers = (self.from_file(p) for p in paths)
+
+        return (p for p in parsers if p)  # remove None entries
+
+    @staticmethod
+    def parse_date(date):
+        """Parse a duration from the date field of the filename.
+
+        Expects '<date_0>-<date_1>'.
+        """
+
+        try:
+            date0, date1 = date.split('-')
+        except ValueError as verr:
+            msg = " expected 2 '-' delimited fields in the date; {}".format(str(verr))
+            raise ValueError(msg)
+
+        return date0, date1
+
+
+class ParserMeta(type):
+    """Meta class to auto regster implementations of Parser."""
+
+    def __new__(meta, name, bases, class_dict):
+        cls = type.__new__(meta, name, bases, class_dict)
+        _register_parser(cls)
+        return cls
+
+    def __init__(cls, *args, **kwargs):
+        cls._INSTITUTION =  cls._INSTITUTION
+
+    @property
+    def INSTITUTION(cls):
+        return str.lower(str(cls._INSTITUTION))
+
+
+class Parser(object, metaclass=ParserMeta):
+    """Base class for parsing the exported transaction histories (e.g. csv).
+
+    Requires the csv filename format of:  <BANK>_<ACCOUNT>_<DATE>.<ext>
+    The 'DATE' field can be: <YYYYMM> OR <YYYYMM>-<YYYYMM>; one month OR start-stop.
+    """
+
+    VERSION = None
+    _INSTITUTION = None
+
+    def __init__(self, csv_path):
+        pass
+
+    @staticmethod
+    def _last_day_of_month(day):
+       """The last day of the month from the date provided."""
+
+       next_month = day.replace(day=28) + datetime.timedelta(days=4)
+       return next_month - datetime.timedelta(days=next_month.day)
+
+    @classmethod
+    def parse_date(cls, date_str):
+        """Convert the date to start / stop times.
+
+        If stop is empty, uses last day of the month from start.
+
+        Args:
+            date_str(str): the date, YYYYMM or YYYYMM-YYYYMM, start & start-stop.
+
+
+        Returns:
+            (datetime.datetime): start date.
+            (datetime.datetime): stop date.
+        """
+
+        if '-' in date_str:
+            d0, d1 = date_str.split('-')
+            start = cls._parse_date(d0)
+            stop = cls._parse_date(d1)
+        else:
+            start = cls._parse_date(date_str)
+            stop = cls._last_day_of_month(start)
+
+        return start, stop
+
+    @classmethod
+    def _parse_date(cls, date):
+
+        format = ""
+        if len(date) == 6:
+            format = "%Y%M"  # YYYYMM
+        elif len(date) == 8:
+            format = "%Y%M%d"  # YYYYMMDD
+        else:
+            raise ValueError("date is not YYYYMM or YYYYMMDD:  {}".format(date))
+
+        time = datetime.datetime.strptime(date, format)
+        return time.date()
+
+    @property
+    def date(self):
+        raise NotImplementedError
+
+    @property
+    def description(self):
+        raise NotImplementedError
+    
+    @property
+    def category(self):
+        raise NotImplementedError
+
+    @property
+    def amount(self):
+        raise NotImplementedError
+
+    def is_date_valid(self, start, stop):
+        """True if this parser should be used for the date provided.
+
+        Args:
+            start (datetime.datetime): begin date of transactions.
+            stop (datetime.datetime): end date of transactions.
+        """
+
+        return False
+
+
+
+if __name__ == "__main__":
+
+    import argparse
+    parser = argparse.ArgumentParser(description='read banking transactions')
+    parser.add_argument('dir', type=str,
+                        help='dir of dir of banking transaction files')
+    
+    args = parser.parse_args()
+
+
+
