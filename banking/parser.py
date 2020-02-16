@@ -7,6 +7,7 @@ import logging
 
 _registry = {}
 
+# TODO add history class that wraps a numpy array (or dataframe) and defines the columns
 
 def _register_parser(target_class):
     """Adds class to the internal Parser registery."""
@@ -24,10 +25,10 @@ class ParserFactory(object):
         """Initializer."""
 
         self._logger = logger or logging.getLogger(__name__)
-        self._institution_to_parsers = self._map_parsers()
+        self.institution_to_parsers = self._map_parsers()
 
-        for bank, parser_list in self._institution_to_parsers.items():
-            self._logger.info(" '{}' has {} parsers".format(bank, len(parser_list)))
+        for bank, parser_list in self.institution_to_parsers.items():
+            self._logger.debug(" '{}' has {} parsers".format(bank, len(parser_list)))
 
     @classmethod
     def _map_parsers(cls):
@@ -74,6 +75,20 @@ class ParserFactory(object):
 
         return bank, account, date
 
+    def parser_names(self):
+        """Return map of institution to Parser class names.
+
+        For debugging.
+
+        Returns:
+            dict(str, list(str)):  the institution map to parser class names.
+        """
+
+        institution_to_parser_names = defaultdict(list)
+        for bank, parser_list in self.institution_to_parsers.items():
+            institution_to_parser_names[bank].append([p.__name__ for p in parser_list])
+        return institution_to_parser_names
+
     def _filter_parsers(self, parsers, date0, date1):
         """Filter the parser iterable for the time frame."""
 
@@ -93,16 +108,16 @@ class ParserFactory(object):
 
         self._logger.debug("from_file:  {}".format(filepath))
         bank, account, date0, date1 = self.name_to_keys(filepath)
-        parsers = self._institution_to_parsers[str.lower(bank)]
+        parsers = self.institution_to_parsers[str.lower(bank)]
         parser = self._filter_parsers(parsers, date0, date1)
         if not parser:
             self._logger.warning("no valid parser for:  {}".format(filepath))
-        return parser
+        return parser(filepath)
 
     def from_directory(self, root):
         """Yield parsers for a directory."""
 
-        self._logger.info(" extracting parsers from {}".format(root))
+        self._logger.info(" reading history from {}".format(root))
         paths_ = (p for p in os.scandir(root) if os.path.isfile(p))
         paths = (p.path for p in paths_)  # posix.DirEntry --> str
         parsers = (self.from_file(p) for p in paths)
@@ -151,8 +166,8 @@ class Parser(object, metaclass=ParserMeta):
     VERSION = None
     _INSTITUTION = None
 
-    def __init__(self, csv_path):
-        pass
+    def __init__(self, history_filepath):
+        self.history_filepath = history_filepath
 
     @staticmethod
     def _last_day_of_month(day):
@@ -225,7 +240,6 @@ class Parser(object, metaclass=ParserMeta):
         """
 
         return False
-
 
 
 if __name__ == "__main__":

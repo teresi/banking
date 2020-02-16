@@ -8,7 +8,11 @@ import coloredlogs
 from banking import transaction
 from banking.parser import Parser, ParserFactory
 from banking.usaa import UsaaParser
+from banking.bbt import BbtParser
 
+#NOTE parser classes must be imported for the factory to work...
+# but the versioning hasn't started yet, and separately that is a little confusing
+# is there a better way? import in module.__init__?
 
 
 if __name__ == "__main__":
@@ -34,6 +38,11 @@ if __name__ == "__main__":
     logger.debug("arguments:  {}".format(args))
 
     factory = ParserFactory()
+
+    parsers_available = factory.parser_names()
+    for institution, parser_names in factory.parser_names().items():
+        logger.info("{} has parsers: {}".format(institution, parser_names))
+
     for sub in os.listdir(args.dir):
         logger.info("found dir:  {}".format(sub))
         directory = os.path.join(args.dir, sub)
@@ -42,6 +51,7 @@ if __name__ == "__main__":
         for p in parsers:
             
             logging.debug("\tparser for dir: {}".format(p))
+            p._parse_textfile()
 
     
  

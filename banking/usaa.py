@@ -5,6 +5,7 @@ USAA transactions.
 """
 
 import datetime
+import csv
 
 from banking.parser import Parser
 
@@ -26,7 +27,7 @@ class _Line(object):
 
     @staticmethod
     def convert_date(date_field):
-        return datetime.datetime(str(date_field), "%M/%D/%Y")
+        return datetime.datetime.strptime(str(date_field), "%M/%d/%Y")
 
     @staticmethod
     def convert_category(category):
@@ -50,14 +51,14 @@ class UsaaParser(Parser):
     VERSION = 1
     _INSTITUTION = 'usaa'
     FILE_DELIMITER = ','
-    FIELD_TYPES = [ (0, 'posted', _Line.convert_posted),
-                    (2, 'date', _Line.convert_date),
-                    (4, 'description', _Line.convert_nothing),
-                    (5, 'category', _Line.convert_category),
-                    (6, 'price', _Line.convert_price) ]
+    FIELD_TYPES = {'posted': [0,_Line.convert_posted],
+                   'date': [2, _Line.convert_date],
+                   'description': [4, _Line.convert_nothing],
+                   'category': [5, _Line.convert_category],
+                   'price': [6, _Line.convert_price]
+                    }
 
-    def __init__(self, textfile_path):
-        pass
+
 
     @classmethod
     def is_date_valid(cls, start, stop):
@@ -71,13 +72,22 @@ class UsaaParser(Parser):
         # MAGIC NUMBER currently only QA'd for 2019 and newer
         return start >= datetime.date(2019, 1, 1)
 
-    def _parse_textfile(self, textfile_path):
+    def _parse_textfile(self):
 
-        with open(textfile_path) as input_file:
+        with open(self.history_filepath) as input_file:
             reader = csv.reader(input_file, delimiter=self.FILE_DELIMITER)
             for line in reader:
+                if not line:
+                    continue
+                if not self._is_line_posted(line):
+                    continue
                 fields = self._parse_line(line)
+                print(fields)
 
+    def _is_line_posted(self, line):
+
+        idx, func = self.FIELD_TYPES['posted']
+        return func(line[idx])
 
     def _parse_line(self, line):
         """Convert a line in text file to the transaction fields.
@@ -89,10 +99,16 @@ class UsaaParser(Parser):
         """
 
         fields = {}
-        for idx, key, str2val in self.FIELD_TYPES:
+
+        for key, sub in self.FIELD_TYPES.items():
+            idx, str2val = sub
             val = str2val(line[idx])
-            fields.update(key, val)
+            fields[key] = val
         return fields
+
+    def _filter_lines(self):
+        """Remove lines."""
+        pass
 
 
 
