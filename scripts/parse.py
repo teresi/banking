@@ -51,7 +51,7 @@ if __name__ == "__main__":
         for p in parsers:
             
             logging.debug("\tparser for dir: {}".format(p))
-            p._parse_textfile()
+            p.parse()
 
     
  

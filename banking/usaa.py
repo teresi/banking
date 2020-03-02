@@ -43,7 +43,7 @@ class _UsaaConvert1(object):
         if price.startswith('--'):
             return Decimal(price[2:])
         elif price.startswith('-'):
-            return Decimal(price[1:])
+            return -1 * Decimal(price[1:])
         else:
             return Decimal(price)  # used when price is forcasted
 
@@ -68,9 +68,6 @@ class UsaaParser1(Parser):
                            'description': TransactionColumns.DESCRIPTION.name,
                            'category': TransactionColumns.CATEGORY.name
                            }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
 
     @classmethod
     def is_date_valid(cls, start, stop):
@@ -102,6 +99,7 @@ class UsaaParser1(Parser):
     
     def parse(self):
 
+        self.logger.info("parsing %s at  %s", self.INSTITUTION, self.history_filepath)
         frame = self._parse_textfile()
 
         return None

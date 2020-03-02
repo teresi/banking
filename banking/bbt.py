@@ -5,7 +5,12 @@ BBT / Truist transactions.
 """
 
 import datetime
+from decimal import Decimal
 import csv
+import logging
+
+import numpy as np
+import pandas as pd
 
 from banking.parser import Parser
 from banking.transaction import TransactionColumns
@@ -33,15 +38,25 @@ class _BbtConvert1(object):
     @staticmethod
     def convert_price(price):
 
+        logging.getLogger().debug("testing logging in converter...")
         if price.startswith('($'):  # negative
             number = price[2:-1]  # remove ($...)
-            return -1 * float(number)
+            return -1 * Decimal(number)
         elif price.startswith('$+'):  # positive
             number = price[2:]  # remove $+
-            return +1 * float(number)
+            return +1 * Decimal(number)
         else:
             msg = "can't parse price, doesn't start with '($' or '$+': {}".format(price)
-            raise ValueError(msg)
+            logging.getLogger().error(msg)
+            return None
+
+    @staticmethod
+    def convert_check(check_number):
+
+        if not check_number:
+            return None
+        else:
+            return np.uint32(check_number)
 
 
 class BbtParser1(Parser):
@@ -50,10 +65,12 @@ class BbtParser1(Parser):
     VERSION = 1
     INSTITUTION = 'bbt'
     DELIMITER = ','
-    FIELD_TYPES = [ ('Date', 'date', _BbtConvert1.convert_date),
-                    ('Check Number', 'check', int),
-                    ('Description', 'category', _BbtConvert1.convert_category),
-                    ('Amount', 'price', _BbtConvert1.convert_price) ]
+    FIELD_NAMES = ['Date', 'Transaction Type', 'Check Number', 'Description', 'Amount']
+    FIELD_CONVERTERS = {'Date': _BbtConvert1.convert_date,
+                        'category': _BbtConvert1.convert_category,
+                        'Amount':  _BbtConvert1.convert_price,
+                        'Check Number': _BbtConvert1.convert_check
+                        }
     FIELD_2_TRANSACTION = {'Date': TransactionColumns.DATE.name,
                            'Check Number': TransactionColumns.CHECK_NO.name,
                            'Description': TransactionColumns.DESCRIPTION.name,
@@ -74,34 +91,19 @@ class BbtParser1(Parser):
 
     def _parse_textfile(self):
 
-        with open(self.history_filepath) as input_file:
-            reader = csv.DictReader(input_file, delimiter=self.DELIMITER)
-            
-            for line in reader:
-                fields = self._parse_line(line)
+        frame = pd.read_csv(self.history_filepath,
+                            header=0,  # MAGIC NUMBER the first line has the names
+                            delimiter=self.DELIMITER,
+                            usecols=self.FIELD_NAMES,
+                            converters=self.FIELD_CONVERTERS
+                            )
 
-    def _parse_line(self, line):
-        """Convert a line in text file to the transaction fields.
-
-        Args:
-            (iterable): the fields in raw string format.
-        Returns:
-            (dict): the entries defined in self.FIELD_TYPES
-        """
-
-        return
-        fields = {}
-        for idx, key, str2val in self.FIELD_TYPES:
-            val = str2val(line[idx])
-            fields[key] = val
-        return fields
-
-    def _filter_lines(self):
-        """Remove lines."""
-        pass
+        return frame
 
     def parse(self):
 
-        raise NotImplementedError()
+        self.logger.info("parsing %s at  %s", self.INSTITUTION, self.history_filepath)
+        frame = self._parse_textfile()
+        print(frame)
 
-
+        return None

@@ -65,7 +65,7 @@ class ParserFactory(object):
     def from_directory(self, root):
         """Yield parsers for a directory."""
 
-        self._logger.info(" reading history from {}".format(root))
+        self._logger.info("reading history from {}".format(root))
         paths_ = (p for p in os.scandir(root) if os.path.isfile(p))
         paths = (p.path for p in paths_)  # posix.DirEntry --> str
         parsers = (self.from_file(p) for p in paths)
@@ -170,8 +170,9 @@ class Parser(metaclass=ParserMeta):
 
     VERSION = None
 
-    def __init__(self, history_filepath):
+    def __init__(self, history_filepath, logger=None):
         self.history_filepath = history_filepath
+        self.logger = logger or logging.getLogger(__name__)
 
     @abstractproperty
     def INSTITUTION(cls):
