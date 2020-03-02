@@ -12,6 +12,7 @@ import pandas as pd
 from decimal import Decimal
 
 from banking.parser import Parser
+from banking.transaction import TransactionColumns
 
 # TODO parse dates
 # TODO parse debit/credit
@@ -62,15 +63,14 @@ class UsaaParser1(Parser):
                         'amount':  _UsaaConvert1.convert_price
                         }
     # MAGIC NUMBER map to TransacationHistory columns
-    FIELD_2_TRANSACTION = {'date': 'DATE',
-                           'price': 'AMOUNT',
-                           'description': 'DESCRIPTION',
-                           'category': 'CATEGORY'
+    FIELD_2_TRANSACTION = {'date': TransactionColumns.DATE.name,
+                           'price': TransactionColumns.AMOUNT.name,
+                           'description': TransactionColumns.DESCRIPTION.name,
+                           'category': TransactionColumns.CATEGORY.name
                            }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
 
     @classmethod
     def is_date_valid(cls, start, stop):
@@ -105,21 +105,3 @@ class UsaaParser1(Parser):
         frame = self._parse_textfile()
 
         return None
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

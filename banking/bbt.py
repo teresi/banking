@@ -8,18 +8,15 @@ import datetime
 import csv
 
 from banking.parser import Parser
+from banking.transaction import TransactionColumns
 
 # TODO parse dates
 # TODO parse debit/credit
 # TODO map categories to master categories (need regex for bbt)
 
 
-class _Line(object):
+class _BbtConvert1(object):
     """One entry of the BBT transaction file."""
-
-    @staticmethod
-    def convert_nothing(field):
-        return field
 
     @staticmethod
     def convert_posted(posted_field):
@@ -47,18 +44,21 @@ class _Line(object):
             raise ValueError(msg)
 
 
-class BbtParser(Parser):
+class BbtParser1(Parser):
     """Reads BBT transactions into a common format."""
 
     VERSION = 1
     INSTITUTION = 'bbt'
-    FILE_DELIMITER = ','
-    FIELD_TYPES = [ ('Date', 'date', _Line.convert_date),
+    DELIMITER = ','
+    FIELD_TYPES = [ ('Date', 'date', _BbtConvert1.convert_date),
                     ('Check Number', 'check', int),
-                    ('Description', 'category', _Line.convert_category),
-                    ('Amount', 'price', _Line.convert_price) ]
-    FIELD_2_TRANSACTION = {}
-
+                    ('Description', 'category', _BbtConvert1.convert_category),
+                    ('Amount', 'price', _BbtConvert1.convert_price) ]
+    FIELD_2_TRANSACTION = {'Date': TransactionColumns.DATE.name,
+                           'Check Number': TransactionColumns.CHECK_NO.name,
+                           'Description': TransactionColumns.DESCRIPTION.name,
+                           'Amount': TransactionColumns.AMOUNT.name
+                           }
 
     @classmethod
     def is_date_valid(cls, start, stop):
@@ -75,7 +75,7 @@ class BbtParser(Parser):
     def _parse_textfile(self):
 
         with open(self.history_filepath) as input_file:
-            reader = csv.DictReader(input_file, delimiter=self.FILE_DELIMITER)
+            reader = csv.DictReader(input_file, delimiter=self.DELIMITER)
             
             for line in reader:
                 fields = self._parse_line(line)
@@ -103,18 +103,5 @@ class BbtParser(Parser):
     def parse(self):
 
         raise NotImplementedError()
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
