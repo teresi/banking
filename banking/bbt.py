@@ -57,6 +57,7 @@ class BbtParser(Parser):
                     ('Check Number', 'check', int),
                     ('Description', 'category', _Line.convert_category),
                     ('Amount', 'price', _Line.convert_price) ]
+    FIELD_2_TRANSACTION = {}
 
 
     @classmethod

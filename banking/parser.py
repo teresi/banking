@@ -1,9 +1,18 @@
 #!/usr/bin/env python3
 
+"""
+Used to parse files and produce banking transaction data.
+
+Implement Parser to read the files, use ParserFactory to automate crawling the disk.
+"""
+
+
 import datetime
 import os
 from collections import defaultdict
 import logging
+
+from abc import ABCMeta, abstractmethod, abstractproperty
 
 _registry = {}
 
@@ -13,6 +22,22 @@ def _register_parser(target_class):
     """Adds class to the internal Parser registery."""
 
     _registry[target_class.__name__] = target_class
+
+
+class ParserMeta(ABCMeta):
+    """Meta class to auto register implementations of Parser."""
+
+    def __new__(meta, name, bases, class_dict):
+        cls = type.__new__(meta, name, bases, class_dict)
+        _register_parser(cls)
+        return cls
+
+    def __init__(cls, *args, **kwargs):
+        cls._INSTITUTION =  cls._INSTITUTION
+
+    @property
+    def INSTITUTION(cls):
+        return str.lower(str(cls._INSTITUTION))
 
 
 class ParserFactory(object):
@@ -30,86 +55,11 @@ class ParserFactory(object):
         for bank, parser_list in self.institution_to_parsers.items():
             self._logger.debug(" '{}' has {} parsers".format(bank, len(parser_list)))
 
-    @classmethod
-    def _map_parsers(cls):
-        """Dict of name of bank to iterable of Parsers.
-
-        Requires caller to import all relevant Parser sub classes prior to invoking.
-        """
-
-        parser_dict = defaultdict(list)
-        for parser_name, parser_class in _registry.items():
-            if parser_class.INSTITUTION == str.lower(str(None)):
-                continue
-            parser_dict[parser_class.INSTITUTION].append(parser_class)
-        return parser_dict
-
-    @classmethod
-    def name_to_keys(cls, filepath):
-        """Return various identifiers from the transaction history filename.
-
-        Expects '<bank>_<account>_<date_0>-<date_1>.<ext>'.
-        """
-
-        file_base = os.path.basename(filepath)
-        file_name, ext = os.path.splitext(file_base)
-        bank, account, date = cls.parse_path(file_name)
-        date0, date1 = Parser.parse_date(date)
-
-        return bank, account, date0, date1
-
-    @staticmethod
-    def parse_path(filepath):
-        """Return various identifiers from the transaction history filename.
-
-        Expects '<bank>_<account>_<date>.<ext>'.
-        """
-
-        base = os.path.basename(str(filepath))
-        filename, ext = os.path.splitext(base)
-        fields = filename.split('_')
-        try:
-            bank, account, date = fields
-        except ValueError as verr:
-            msg = (" expected bank, account, date '_' delimited fields in filename; {}"
-                    .format(filepath))
-            raise ValueError(msg)
-
-        return bank, account, date
-
-    def parser_names(self):
-        """Return map of institution to Parser class names.
-
-        For debugging.
-
-        Returns:
-            dict(str, list(str)):  the institution map to parser class names.
-        """
-
-        institution_to_parser_names = defaultdict(list)
-        for bank, parser_list in self.institution_to_parsers.items():
-            institution_to_parser_names[bank].append([p.__name__ for p in parser_list])
-        return institution_to_parser_names
-
-    def _filter_parsers(self, parsers, date0, date1):
-        """Filter the parser iterable for the time frame."""
-
-        valid_parsers = [p for p in parsers if p.is_date_valid(date0, date1)]
-        if len(valid_parsers) > 1:
-            msg = ("more than one parser exists for {} between {}...{}"
-                   .format(institution, date0, date1))
-            logger.error(msg)
-            msg = ("these parsers overlap in time and are ambiguous: {}"
-                   .format(valid_parsers))
-            logger.info(msg)
-            return None
-        return valid_parsers[0] if valid_parsers else None
-
     def from_file(self, filepath):
         """Parser from filepath."""
 
         self._logger.debug("from_file:  {}".format(filepath))
-        bank, account, date0, date1 = self.name_to_keys(filepath)
+        bank, account, date0, date1 = self._name_to_keys(filepath)
         parsers = self.institution_to_parsers[str.lower(bank)]
         parser = self._filter_parsers(parsers, date0, date1)
         if not parser:
@@ -127,6 +77,18 @@ class ParserFactory(object):
 
         return (p for p in parsers if p)  # remove None entries
 
+    def parser_names(self):
+        """Return map of institution to Parser class names; for debugging.
+
+        Returns:
+            dict(str, list(str)):  the institution map to parser class names.
+        """
+
+        institution_to_parser_names = defaultdict(list)
+        for bank, parser_list in self.institution_to_parsers.items():
+            institution_to_parser_names[bank].append([p.__name__ for p in parser_list])
+        return institution_to_parser_names
+
     @staticmethod
     def parse_date(date):
         """Parse a duration from the date field of the filename.
@@ -142,24 +104,69 @@ class ParserFactory(object):
 
         return date0, date1
 
+    @classmethod
+    def _map_parsers(cls):
+        """Dict of name of bank to iterable of Parsers.
 
-class ParserMeta(type):
-    """Meta class to auto regster implementations of Parser."""
+        Requires caller to import all relevant Parser sub classes prior to invoking.
+        """
 
-    def __new__(meta, name, bases, class_dict):
-        cls = type.__new__(meta, name, bases, class_dict)
-        _register_parser(cls)
-        return cls
+        parser_dict = defaultdict(list)
+        for parser_name, parser_class in _registry.items():
+            if parser_class.INSTITUTION == str.lower(str(None)):
+                continue
+            parser_dict[parser_class.INSTITUTION].append(parser_class)
+        return parser_dict
 
-    def __init__(cls, *args, **kwargs):
-        cls._INSTITUTION =  cls._INSTITUTION
+    @classmethod
+    def _name_to_keys(cls, filepath):
+        """Return various identifiers from the transaction history filename.
 
-    @property
-    def INSTITUTION(cls):
-        return str.lower(str(cls._INSTITUTION))
+        Expects '<bank>_<account>_<date_0>-<date_1>.<ext>'.
+        """
+
+        file_base = os.path.basename(filepath)
+        file_name, ext = os.path.splitext(file_base)
+        bank, account, date = cls._parse_path(file_name)
+        date0, date1 = Parser.parse_date(date)
+
+        return bank, account, date0, date1
+
+    @staticmethod
+    def _parse_path(filepath):
+        """Return various identifiers from the transaction history filename.
+
+        Expects '<bank>_<account>_<date>.<ext>'.
+        """
+
+        base = os.path.basename(str(filepath))
+        filename, ext = os.path.splitext(base)
+        fields = filename.split('_')
+        try:
+            bank, account, date = fields
+        except ValueError as verr:
+            msg = (" expected bank, account, date '_' delimited fields in filename; {}"
+                    .format(filepath))
+            raise ValueError(msg)
+
+        return bank, account, date
+
+    def _filter_parsers(self, parsers, date0, date1):
+        """Filter the parser iterable for the time frame."""
+
+        valid_parsers = [p for p in parsers if p.is_date_valid(date0, date1)]
+        if len(valid_parsers) > 1:
+            msg = ("more than one parser exists for {} between {}...{}"
+                   .format(institution, date0, date1))
+            logger.error(msg)
+            msg = ("these parsers overlap in time and are ambiguous: {}"
+                   .format(valid_parsers))
+            logger.info(msg)
+            return None
+        return valid_parsers[0] if valid_parsers else None
 
 
-class Parser(object, metaclass=ParserMeta):
+class Parser(metaclass=ParserMeta):
     """Base class for parsing the exported transaction histories (e.g. csv).
 
     Requires the csv filename format of:  <BANK>_<ACCOUNT>_<DATE>.<ext>
@@ -171,6 +178,28 @@ class Parser(object, metaclass=ParserMeta):
 
     def __init__(self, history_filepath):
         self.history_filepath = history_filepath
+
+    @abstractproperty
+    def FIELD_2_TRANSACTION(self):
+        """Dict of subclass column names to TransactionHistory columns."""
+        return {}
+
+    @abstractmethod
+    def is_date_valid(self, start, stop):
+        """True if this parser should be used for the date provided.
+
+        Args:
+            start (datetime.datetime): begin date of transactions.
+            stop (datetime.datetime): end date of transactions.
+        """
+
+        return False
+
+    @abstractmethod
+    def parse(self):
+        """Return a TransactionHistory representation of the data."""
+
+        raise NotImplementedError()
 
     @staticmethod
     def _last_day_of_month(day):
@@ -217,32 +246,6 @@ class Parser(object, metaclass=ParserMeta):
 
         time = datetime.datetime.strptime(date, format)
         return time.date()
-
-    @property
-    def date(self):
-        raise NotImplementedError
-
-    @property
-    def description(self):
-        raise NotImplementedError
-    
-    @property
-    def category(self):
-        raise NotImplementedError
-
-    @property
-    def amount(self):
-        raise NotImplementedError
-
-    def is_date_valid(self, start, stop):
-        """True if this parser should be used for the date provided.
-
-        Args:
-            start (datetime.datetime): begin date of transactions.
-            stop (datetime.datetime): end date of transactions.
-        """
-
-        return False
 
 
 if __name__ == "__main__":

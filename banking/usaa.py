@@ -68,6 +68,10 @@ class UsaaParser1(Parser):
                            'category': 'CATEGORY'
                            }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
     @classmethod
     def is_date_valid(cls, start, stop):
         """True if this parser should be used for the date provided.
