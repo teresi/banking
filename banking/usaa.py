@@ -7,6 +7,10 @@ USAA transactions.
 import datetime
 import csv
 
+import numpy as np
+import pandas as pd
+from decimal import Decimal
+
 from banking.parser import Parser
 
 # TODO parse dates
@@ -14,12 +18,8 @@ from banking.parser import Parser
 # TODO map categories to master categories (need regex for bbt)
 
 
-class _Line(object):
-    """One entry of the USAA transaction file."""
-
-    @staticmethod
-    def convert_nothing(field):
-        return field
+class _UsaaConvert1(object):
+    """Sundry functions to convert entries of the USAA transaction file."""
 
     @staticmethod
     def convert_posted(posted_field):
@@ -27,7 +27,10 @@ class _Line(object):
 
     @staticmethod
     def convert_date(date_field):
-        return datetime.datetime.strptime(str(date_field), "%M/%d/%Y")
+        # NOTE the hour field is populated when pandas gets this data
+        # what effect will that have?
+        date_time = datetime.datetime.strptime(str(date_field), "%M/%d/%Y")
+        return np.datetime64(date_time)
 
     @staticmethod
     def convert_category(category):
@@ -37,28 +40,33 @@ class _Line(object):
     def convert_price(price):
 
         if price.startswith('--'):
-            return float(price[2:])
+            return Decimal(price[2:])
         elif price.startswith('-'):
-            return float(price[1:])
+            return Decimal(price[1:])
         else:
-            msg = "debit/credit doesn't start with '-' | '--': {}".format(price)
-            raise ValueError(msg)
+            return Decimal(price)  # used when price is forcasted
 
-
-class UsaaParser(Parser):
+class UsaaParser1(Parser):
     """Reads USAA transactions into a common format."""
 
     VERSION = 1
     _INSTITUTION = 'usaa'
-    FILE_DELIMITER = ','
-    FIELD_TYPES = {'posted': [0,_Line.convert_posted],
-                   'date': [2, _Line.convert_date],
-                   'description': [4, _Line.convert_nothing],
-                   'category': [5, _Line.convert_category],
-                   'price': [6, _Line.convert_price]
-                    }
+    DELIMITER = ','
 
-
+    # MAGIC NUMBER per usaa format
+    FIELD_COLS = [0, 2, 4, 5, 6]
+    FIELD_NAMES = ['posted', 'date', 'description', 'category', 'amount']
+    FIELD_CONVERTERS = {'posted': _UsaaConvert1.convert_posted,
+                        'date': _UsaaConvert1.convert_date,
+                        'category': _UsaaConvert1.convert_category,
+                        'amount':  _UsaaConvert1.convert_price
+                        }
+    # MAGIC NUMBER map to TransacationHistory columns
+    FIELD_2_TRANSACTION = {'date': 'DATE',
+                           'price': 'AMOUNT',
+                           'description': 'DESCRIPTION',
+                           'category': 'CATEGORY'
+                           }
 
     @classmethod
     def is_date_valid(cls, start, stop):
@@ -73,42 +81,29 @@ class UsaaParser(Parser):
         return start >= datetime.date(2019, 1, 1)
 
     def _parse_textfile(self):
+        
 
-        with open(self.history_filepath) as input_file:
-            reader = csv.reader(input_file, delimiter=self.FILE_DELIMITER)
-            for line in reader:
-                if not line:
-                    continue
-                if not self._is_line_posted(line):
-                    continue
-                fields = self._parse_line(line)
-                print(fields)
+        frame = pd.read_csv(self.history_filepath,
+                            header=None,  # MAGIC NUMBER file has no header line
+                            delimiter=self.DELIMITER,
+                            usecols=self.FIELD_COLS,
+                            names=self.FIELD_NAMES,
+                            converters=self.FIELD_CONVERTERS
+                           )
+        # remove incomplete transactions
+        frame.drop(frame[frame.posted==False].index, inplace=True)
 
-    def _is_line_posted(self, line):
+        print(frame)
+        return frame
+    
+    def parse(self):
 
-        idx, func = self.FIELD_TYPES['posted']
-        return func(line[idx])
+        frame = self._parse_textfile()
 
-    def _parse_line(self, line):
-        """Convert a line in text file to the transaction fields.
+        return None
 
-        Args:
-            (iterable): the fields in raw string format.
-        Returns:
-            (dict): the entries defined in self.FIELD_TYPES
-        """
 
-        fields = {}
 
-        for key, sub in self.FIELD_TYPES.items():
-            idx, str2val = sub
-            val = str2val(line[idx])
-            fields[key] = val
-        return fields
-
-    def _filter_lines(self):
-        """Remove lines."""
-        pass
 
 
 

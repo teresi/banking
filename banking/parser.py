@@ -51,7 +51,9 @@ class ParserFactory(object):
         Expects '<bank>_<account>_<date_0>-<date_1>.<ext>'.
         """
 
-        bank, account, date = cls.parse_path(filepath)
+        file_base = os.path.basename(filepath)
+        file_name, ext = os.path.splitext(file_base)
+        bank, account, date = cls.parse_path(file_name)
         date0, date1 = Parser.parse_date(date)
 
         return bank, account, date0, date1
@@ -112,6 +114,7 @@ class ParserFactory(object):
         parser = self._filter_parsers(parsers, date0, date1)
         if not parser:
             self._logger.warning("no valid parser for:  {}".format(filepath))
+            return None
         return parser(filepath)
 
     def from_directory(self, root):

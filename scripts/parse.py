@@ -7,7 +7,7 @@ import coloredlogs
 
 from banking import transaction
 from banking.parser import Parser, ParserFactory
-from banking.usaa import UsaaParser
+from banking.usaa import UsaaParser1
 from banking.bbt import BbtParser
 
 #NOTE parser classes must be imported for the factory to work...

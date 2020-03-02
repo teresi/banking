@@ -99,6 +99,10 @@ class BbtParser(Parser):
         """Remove lines."""
         pass
 
+    def parse(self):
+
+        raise NotImplementedError()
+
 
 
 
