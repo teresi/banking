@@ -51,7 +51,7 @@ class BbtParser(Parser):
     """Reads BBT transactions into a common format."""
 
     VERSION = 1
-    _INSTITUTION = 'bbt'
+    INSTITUTION = 'bbt'
     FILE_DELIMITER = ','
     FIELD_TYPES = [ ('Date', 'date', _Line.convert_date),
                     ('Check Number', 'check', int),

@@ -14,6 +14,8 @@ import logging
 
 from abc import ABCMeta, abstractmethod, abstractproperty
 
+from banking.transaction import TransactionHistory
+
 _registry = {}
 
 # TODO add history class that wraps a numpy array (or dataframe) and defines the columns
@@ -31,13 +33,6 @@ class ParserMeta(ABCMeta):
         cls = type.__new__(meta, name, bases, class_dict)
         _register_parser(cls)
         return cls
-
-    def __init__(cls, *args, **kwargs):
-        cls._INSTITUTION =  cls._INSTITUTION
-
-    @property
-    def INSTITUTION(cls):
-        return str.lower(str(cls._INSTITUTION))
 
 
 class ParserFactory(object):
@@ -174,10 +169,15 @@ class Parser(metaclass=ParserMeta):
     """
 
     VERSION = None
-    _INSTITUTION = None
 
     def __init__(self, history_filepath):
         self.history_filepath = history_filepath
+
+    @abstractproperty
+    def INSTITUTION(cls):
+        """The name of the bank."""
+
+        return str(cls.INSTITUTION)
 
     @abstractproperty
     def FIELD_2_TRANSACTION(self):
@@ -199,7 +199,7 @@ class Parser(metaclass=ParserMeta):
     def parse(self):
         """Return a TransactionHistory representation of the data."""
 
-        raise NotImplementedError()
+        return TransactionHistory()
 
     @staticmethod
     def _last_day_of_month(day):
@@ -216,7 +216,6 @@ class Parser(metaclass=ParserMeta):
 
         Args:
             date_str(str): the date, YYYYMM or YYYYMM-YYYYMM, start & start-stop.
-
 
         Returns:
             (datetime.datetime): start date.
@@ -235,6 +234,7 @@ class Parser(metaclass=ParserMeta):
 
     @classmethod
     def _parse_date(cls, date):
+        """Convert the expected date sub-string to datetime."""
 
         format = ""
         if len(date) == 6:

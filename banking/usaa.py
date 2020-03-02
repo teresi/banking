@@ -50,7 +50,7 @@ class UsaaParser1(Parser):
     """Reads USAA transactions into a common format."""
 
     VERSION = 1
-    _INSTITUTION = 'usaa'
+    INSTITUTION = 'usaa'
     DELIMITER = ','
 
     # MAGIC NUMBER per usaa format
