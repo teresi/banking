@@ -29,7 +29,7 @@ class _UsaaConvert1(object):
     @staticmethod
     def convert_date(date_field):
         # NOTE the hour field is populated when pandas gets this data
-        # what effect will that have?
+        # what effect will that have? (maybe check the zone?)
         date_time = datetime.datetime.strptime(str(date_field), "%M/%d/%Y")
         return np.datetime64(date_time)
 
@@ -64,7 +64,7 @@ class UsaaParser1(Parser):
                         }
     # MAGIC NUMBER map to TransacationHistory columns
     FIELD_2_TRANSACTION = {'date': TransactionColumns.DATE.name,
-                           'price': TransactionColumns.AMOUNT.name,
+                           'amount': TransactionColumns.AMOUNT.name,
                            'description': TransactionColumns.DESCRIPTION.name,
                            'category': TransactionColumns.CATEGORY.name
                            }
@@ -82,7 +82,7 @@ class UsaaParser1(Parser):
         return start >= datetime.date(2019, 1, 1)
 
     def _parse_textfile(self):
-        
+        """Read file into a data frame."""
 
         frame = pd.read_csv(self.history_filepath,
                             header=None,  # MAGIC NUMBER file has no header line
@@ -94,12 +94,23 @@ class UsaaParser1(Parser):
         # remove incomplete transactions
         frame.drop(frame[frame.posted==False].index, inplace=True)
 
-        print(frame)
         return frame
-    
+
+    def _transaction_history(self, frame):
+        """Convert custom columns to TransactionHistory."""
+
+        # frame[TransactionColumns.BANK.name] = self.INSTITUTION
+        # frame[TransactionColumns.ACCOUNT.name] = None  # NOTE reconsider this feature
+        frame.rename(columns=self.FIELD_2_TRANSACTION, inplace=True)
+        frame[TransactionColumns.CHECK_NO.name] = None
+        return frame
+
     def parse(self):
 
         self.logger.info("parsing %s at  %s", self.INSTITUTION, self.history_filepath)
         frame = self._parse_textfile()
+        frame = self._transaction_history(frame)
+        # FUTURE refine & map categories
+        print(frame)
 
         return None

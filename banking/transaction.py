@@ -20,8 +20,9 @@ class TransactionColumns(Enum):
     AMOUNT = auto()
     DESCRIPTION = auto()
     CATEGORY = auto()
-    BANK = auto()
+    #BANK = auto()
     CHECK_NO = auto()
+    #ACCOUNT = auto()
 
 class TransactionHistory(object):
     """Wraps a data frame containing banking transactions."""

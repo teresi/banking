@@ -54,6 +54,7 @@ class _BbtConvert1(object):
     def convert_check(check_number):
 
         if not check_number:
+            # BUG missing check no. sometimes get converted to NaN, and then real ones to floats (b/c a Nan is a float and it casts the ints)
             return None
         else:
             return np.uint32(check_number)
@@ -97,13 +98,21 @@ class BbtParser1(Parser):
                             usecols=self.FIELD_NAMES,
                             converters=self.FIELD_CONVERTERS
                             )
+        return frame
 
+    def _transaction_history(self, frame):
+        """Convert custom columns to TransactionHistory."""
+
+        frame.rename(columns=self.FIELD_2_TRANSACTION, inplace=True)
+        frame[TransactionColumns.CATEGORY.name] = None  # FUTURE populate categories
         return frame
 
     def parse(self):
 
         self.logger.info("parsing %s at  %s", self.INSTITUTION, self.history_filepath)
         frame = self._parse_textfile()
+        frame = self._transaction_history(frame)
+        # FUTURE add & map categories
         print(frame)
 
         return None
