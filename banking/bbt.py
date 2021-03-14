@@ -25,7 +25,7 @@ class _BbtConvert1(object):
 
     @staticmethod
     def convert_posted(posted_field):
-        return posted_field == 'posted'
+        return posted_field == "posted"
 
     @staticmethod
     def convert_date(date_field):
@@ -39,10 +39,10 @@ class _BbtConvert1(object):
     def convert_price(price):
 
         logging.getLogger().debug("testing logging in converter...")
-        if price.startswith('($'):  # negative
+        if price.startswith("($"):  # negative
             number = price[2:-1]  # remove ($...)
             return -1 * Decimal(number)
-        elif price.startswith('$+'):  # positive
+        elif price.startswith("$+"):  # positive
             number = price[2:]  # remove $+
             return +1 * Decimal(number)
         else:
@@ -64,19 +64,21 @@ class BbtParser1(Parser):
     """Reads BBT transactions into a common format."""
 
     VERSION = 1
-    INSTITUTION = 'bbt'
-    DELIMITER = ','
-    FIELD_NAMES = ['Date', 'Transaction Type', 'Check Number', 'Description', 'Amount']
-    FIELD_CONVERTERS = {'Date': _BbtConvert1.convert_date,
-                        'category': _BbtConvert1.convert_category,
-                        'Amount':  _BbtConvert1.convert_price,
-                        'Check Number': _BbtConvert1.convert_check
-                        }
-    FIELD_2_TRANSACTION = {'Date': TransactionColumns.DATE.name,
-                           'Check Number': TransactionColumns.CHECK_NO.name,
-                           'Description': TransactionColumns.DESCRIPTION.name,
-                           'Amount': TransactionColumns.AMOUNT.name
-                           }
+    INSTITUTION = "bbt"
+    DELIMITER = ","
+    FIELD_NAMES = ["Date", "Transaction Type", "Check Number", "Description", "Amount"]
+    FIELD_CONVERTERS = {
+        "Date": _BbtConvert1.convert_date,
+        "category": _BbtConvert1.convert_category,
+        "Amount": _BbtConvert1.convert_price,
+        "Check Number": _BbtConvert1.convert_check,
+    }
+    FIELD_2_TRANSACTION = {
+        "Date": TransactionColumns.DATE.name,
+        "Check Number": TransactionColumns.CHECK_NO.name,
+        "Description": TransactionColumns.DESCRIPTION.name,
+        "Amount": TransactionColumns.AMOUNT.name,
+    }
 
     @classmethod
     def is_date_valid(cls, start, stop):
@@ -92,12 +94,13 @@ class BbtParser1(Parser):
 
     def _parse_textfile(self):
 
-        frame = pd.read_csv(self.history_filepath,
-                            header=0,  # MAGIC NUMBER the first line has the names
-                            delimiter=self.DELIMITER,
-                            usecols=self.FIELD_NAMES,
-                            converters=self.FIELD_CONVERTERS
-                            )
+        frame = pd.read_csv(
+            self.history_filepath,
+            header=0,  # MAGIC NUMBER the first line has the names
+            delimiter=self.DELIMITER,
+            usecols=self.FIELD_NAMES,
+            converters=self.FIELD_CONVERTERS,
+        )
         return frame
 
     def _transaction_history(self, frame):

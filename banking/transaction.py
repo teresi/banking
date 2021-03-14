@@ -12,6 +12,7 @@ import datetime
 import numpy as np
 import pandas as pd
 
+
 @unique
 class TransactionColumns(Enum):
     """The names for the columns present in a TransactionHistory data frame."""
@@ -20,9 +21,10 @@ class TransactionColumns(Enum):
     AMOUNT = auto()
     DESCRIPTION = auto()
     CATEGORY = auto()
-    #BANK = auto()
+    # BANK = auto()
     CHECK_NO = auto()
-    #ACCOUNT = auto()
+    # ACCOUNT = auto()
+
 
 class TransactionHistory(object):
     """Wraps a data frame containing banking transactions."""
@@ -40,5 +42,3 @@ class TransactionHistory(object):
     @classmethod
     def from_parsers(cls, parser_list):
         pass
-
-

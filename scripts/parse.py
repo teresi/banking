@@ -6,6 +6,7 @@ import logging
 import coloredlogs
 
 from banking import transaction
+from banking import setup_logger
 from banking.parser import Parser, ParserFactory
 from banking.usaa import UsaaParser1
 from banking.bbt import BbtParser1
@@ -30,11 +31,9 @@ if __name__ == "__main__":
     parser.add_argument('-v', '--verbose', action='count', default=1,
                         help='verbosity: None = warn, -v = info, -vv = debug')
     args = parser.parse_args()
-    
-    verb_levels = [logging.WARNING, logging.INFO, logging.DEBUG]
-    verb = verb_levels[min(len(verb_levels)-1, args.verbose)]
+
+    setup_logger(args.verbose)
     logger = logging.getLogger(__name__)
-    coloredlogs.install(level=verb)
     logger.debug("arguments:  {}".format(args))
 
     factory = ParserFactory()
@@ -49,9 +48,6 @@ if __name__ == "__main__":
         parsers = factory.from_directory(directory)
 
         for p in parsers:
-            
             logging.debug("\tparser for dir: {}".format(p))
             p.parse()
 
-    
- 

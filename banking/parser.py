@@ -20,6 +20,7 @@ _registry = {}
 
 # TODO add history class that wraps a numpy array (or dataframe) and defines the columns
 
+
 def _register_parser(target_class):
     """Adds class to the internal Parser registery."""
 
@@ -92,7 +93,7 @@ class ParserFactory(object):
         """
 
         try:
-            date0, date1 = date.split('-')
+            date0, date1 = date.split("-")
         except ValueError as verr:
             msg = " expected 2 '-' delimited fields in the date; {}".format(str(verr))
             raise ValueError(msg)
@@ -136,12 +137,13 @@ class ParserFactory(object):
 
         base = os.path.basename(str(filepath))
         filename, ext = os.path.splitext(base)
-        fields = filename.split('_')
+        fields = filename.split("_")
         try:
             bank, account, date = fields
         except ValueError as verr:
-            msg = (" expected bank, account, date '_' delimited fields in filename; {}"
-                    .format(filepath))
+            msg = " expected bank, account, date '_' delimited fields in filename; {}".format(
+                filepath
+            )
             raise ValueError(msg)
 
         return bank, account, date
@@ -151,11 +153,13 @@ class ParserFactory(object):
 
         valid_parsers = [p for p in parsers if p.is_date_valid(date0, date1)]
         if len(valid_parsers) > 1:
-            msg = ("more than one parser exists for {} between {}...{}"
-                   .format(institution, date0, date1))
+            msg = "more than one parser exists for {} between {}...{}".format(
+                institution, date0, date1
+            )
             logger.error(msg)
-            msg = ("these parsers overlap in time and are ambiguous: {}"
-                   .format(valid_parsers))
+            msg = "these parsers overlap in time and are ambiguous: {}".format(
+                valid_parsers
+            )
             logger.info(msg)
             return None
         return valid_parsers[0] if valid_parsers else None
@@ -204,10 +208,10 @@ class Parser(metaclass=ParserMeta):
 
     @staticmethod
     def _last_day_of_month(day):
-       """The last day of the month from the date provided."""
+        """The last day of the month from the date provided."""
 
-       next_month = day.replace(day=28) + datetime.timedelta(days=4)
-       return next_month - datetime.timedelta(days=next_month.day)
+        next_month = day.replace(day=28) + datetime.timedelta(days=4)
+        return next_month - datetime.timedelta(days=next_month.day)
 
     @classmethod
     def parse_date(cls, date_str):
@@ -223,8 +227,8 @@ class Parser(metaclass=ParserMeta):
             (datetime.datetime): stop date.
         """
 
-        if '-' in date_str:
-            d0, d1 = date_str.split('-')
+        if "-" in date_str:
+            d0, d1 = date_str.split("-")
             start = cls._parse_date(d0)
             stop = cls._parse_date(d1)
         else:
@@ -252,11 +256,8 @@ class Parser(metaclass=ParserMeta):
 if __name__ == "__main__":
 
     import argparse
-    parser = argparse.ArgumentParser(description='read banking transactions')
-    parser.add_argument('dir', type=str,
-                        help='dir of dir of banking transaction files')
-    
+
+    parser = argparse.ArgumentParser(description="read banking transactions")
+    parser.add_argument("dir", type=str, help="dir of dir of banking transaction files")
+
     args = parser.parse_args()
-
-
-

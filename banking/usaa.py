@@ -24,7 +24,7 @@ class _UsaaConvert1(object):
 
     @staticmethod
     def convert_posted(posted_field):
-        return posted_field == 'posted'
+        return posted_field == "posted"
 
     @staticmethod
     def convert_date(date_field):
@@ -40,34 +40,37 @@ class _UsaaConvert1(object):
     @staticmethod
     def convert_price(price):
 
-        if price.startswith('--'):
+        if price.startswith("--"):
             return Decimal(price[2:])
-        elif price.startswith('-'):
+        elif price.startswith("-"):
             return -1 * Decimal(price[1:])
         else:
             return Decimal(price)  # used when price is forcasted
+
 
 class UsaaParser1(Parser):
     """Reads USAA transactions into a common format."""
 
     VERSION = 1
-    INSTITUTION = 'usaa'
-    DELIMITER = ','
+    INSTITUTION = "usaa"
+    DELIMITER = ","
 
     # MAGIC NUMBER per usaa format
     FIELD_COLS = [0, 2, 4, 5, 6]
-    FIELD_NAMES = ['posted', 'date', 'description', 'category', 'amount']
-    FIELD_CONVERTERS = {'posted': _UsaaConvert1.convert_posted,
-                        'date': _UsaaConvert1.convert_date,
-                        'category': _UsaaConvert1.convert_category,
-                        'amount':  _UsaaConvert1.convert_price
-                        }
+    FIELD_NAMES = ["posted", "date", "description", "category", "amount"]
+    FIELD_CONVERTERS = {
+        "posted": _UsaaConvert1.convert_posted,
+        "date": _UsaaConvert1.convert_date,
+        "category": _UsaaConvert1.convert_category,
+        "amount": _UsaaConvert1.convert_price,
+    }
     # MAGIC NUMBER map to TransacationHistory columns
-    FIELD_2_TRANSACTION = {'date': TransactionColumns.DATE.name,
-                           'amount': TransactionColumns.AMOUNT.name,
-                           'description': TransactionColumns.DESCRIPTION.name,
-                           'category': TransactionColumns.CATEGORY.name
-                           }
+    FIELD_2_TRANSACTION = {
+        "date": TransactionColumns.DATE.name,
+        "amount": TransactionColumns.AMOUNT.name,
+        "description": TransactionColumns.DESCRIPTION.name,
+        "category": TransactionColumns.CATEGORY.name,
+    }
 
     @classmethod
     def is_date_valid(cls, start, stop):
@@ -84,15 +87,16 @@ class UsaaParser1(Parser):
     def _parse_textfile(self):
         """Read file into a data frame."""
 
-        frame = pd.read_csv(self.history_filepath,
-                            header=None,  # MAGIC NUMBER file has no header line
-                            delimiter=self.DELIMITER,
-                            usecols=self.FIELD_COLS,
-                            names=self.FIELD_NAMES,
-                            converters=self.FIELD_CONVERTERS
-                           )
+        frame = pd.read_csv(
+            self.history_filepath,
+            header=None,  # MAGIC NUMBER file has no header line
+            delimiter=self.DELIMITER,
+            usecols=self.FIELD_COLS,
+            names=self.FIELD_NAMES,
+            converters=self.FIELD_CONVERTERS,
+        )
         # remove incomplete transactions
-        frame.drop(frame[frame.posted==False].index, inplace=True)
+        frame.drop(frame[frame.posted == False].index, inplace=True)
 
         return frame
 
