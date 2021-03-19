@@ -10,7 +10,7 @@ import logging
 
 import colored_logs
 
-from banking import setup_logger
+from banking.utils import setup_logger
 from banking.google_sheets import Sheet
 from banking.parser import 
 

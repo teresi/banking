@@ -5,8 +5,7 @@ import logging
 
 import coloredlogs
 
-from banking import transaction
-from banking import setup_logger
+from banking.utils import setup_logger
 from banking.parser import Parser, ParserFactory
 from banking.usaa import UsaaParser1
 from banking.bbt import BbtParser1

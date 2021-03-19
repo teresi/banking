@@ -16,24 +16,7 @@ from abc import ABCMeta, abstractmethod, abstractproperty
 
 from banking.transaction import TransactionHistory
 
-_registry = {}
-
 # TODO add history class that wraps a numpy array (or dataframe) and defines the columns
-
-
-def _register_parser(target_class):
-    """Adds class to the internal Parser registery."""
-
-    _registry[target_class.__name__] = target_class
-
-
-class ParserMeta(ABCMeta):
-    """Meta class to auto register implementations of Parser."""
-
-    def __new__(meta, name, bases, class_dict):
-        cls = type.__new__(meta, name, bases, class_dict)
-        _register_parser(cls)
-        return cls
 
 
 class ParserFactory(object):
@@ -165,18 +148,29 @@ class ParserFactory(object):
         return valid_parsers[0] if valid_parsers else None
 
 
-class Parser(metaclass=ParserMeta):
+class Parser:
     """Base class for parsing the exported transaction histories (e.g. csv).
 
     Requires the csv filename format of:  <BANK>_<ACCOUNT>_<DATE>.<ext>
     The 'DATE' field can be: <YYYYMM> OR <YYYYMM>-<YYYYMM>; one month OR start-stop.
     """
 
-    VERSION = None
+    SUBCLASSES = {}
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        cls.SUBCLASSES[cls.__name__] = cls
 
     def __init__(self, history_filepath, logger=None):
+        # TODO raise if not valid file
         self.history_filepath = history_filepath
         self.logger = logger or logging.getLogger(__name__)
+
+    @abstractproperty
+    def VERSION(cls):  # TODO remove?
+        """Version of the parser."""
+
+        return int()
 
     @abstractproperty
     def INSTITUTION(cls):
