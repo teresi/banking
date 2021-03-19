@@ -1,2 +1,2 @@
 # banking
-A simple home finance tool to parse and analyse banking transactions.
+Small project to analyze bank statements and explore Pandas / Google docs.
