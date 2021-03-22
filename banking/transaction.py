@@ -25,7 +25,7 @@ class TransactionColumns(Enum):
     CHECK_NO = auto()
     # ACCOUNT = auto()
 
-
+# TODO refactor this to just clean up a dataframe? e.g. remap columns?
 class TransactionHistory(object):
     """Wraps a data frame containing banking transactions."""
 

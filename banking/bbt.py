@@ -67,7 +67,7 @@ class BbtParser1(Parser):
     INSTITUTION = "bbt"
     DELIMITER = ","
     FIELD_NAMES = ["Date", "Transaction Type", "Check Number", "Description", "Amount"]
-    FIELD_CONVERTERS = {
+    COLUMN_HEADER_TO_CONVERTER = {
         "Date": _BbtConvert1.convert_date,
         "category": _BbtConvert1.convert_category,
         "Amount": _BbtConvert1.convert_price,
@@ -95,11 +95,11 @@ class BbtParser1(Parser):
     def _parse_textfile(self):
 
         frame = pd.read_csv(
-            self.history_filepath,
+            self.filepath,
             header=0,  # MAGIC NUMBER the first line has the names
             delimiter=self.DELIMITER,
             usecols=self.FIELD_NAMES,
-            converters=self.FIELD_CONVERTERS,
+            converters=self.COLUMN_HEADER_TO_CONVERTER,
         )
         return frame
 
@@ -112,7 +112,7 @@ class BbtParser1(Parser):
 
     def parse(self):
 
-        self.logger.info("parsing %s at  %s", self.INSTITUTION, self.history_filepath)
+        self.logger.info("parsing %s at  %s", self.INSTITUTION, self.filepath)
         frame = self._parse_textfile()
         frame = self._transaction_history(frame)
         # FUTURE add & map categories

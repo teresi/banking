@@ -11,13 +11,14 @@ import datetime
 import os
 from collections import defaultdict
 import logging
+import errno
 
 from abc import ABCMeta, abstractmethod, abstractproperty
 
 from banking.transaction import TransactionHistory
+from banking.utils import file_dne_exc
 
 # TODO add history class that wraps a numpy array (or dataframe) and defines the columns
-
 
 class ParserFactory(object):
     """Creates Parser objects given ASCII files.
@@ -161,10 +162,14 @@ class Parser:
         super().__init_subclass__(**kwargs)
         cls.SUBCLASSES[cls.__name__] = cls
 
-    def __init__(self, history_filepath, logger=None):
-        # TODO raise if not valid file
-        self.history_filepath = history_filepath
+    def __init__(self, filepath, logger=None):
+
+        self.filepath = filepath
         self.logger = logger or logging.getLogger(__name__)
+
+        if not os.path.isfile(self.filepath):
+            raise FileNotFoundError(
+                    errno.ENOENT, os.strerror(errno.ENOENT), self.filepath)
 
     @abstractproperty
     def VERSION(cls):  # TODO remove?
@@ -176,12 +181,30 @@ class Parser:
     def INSTITUTION(cls):
         """The name of the bank."""
 
-        return str(cls.INSTITUTION)
+        return str()
 
     @abstractproperty
     def FIELD_2_TRANSACTION(self):
         """Dict of subclass column names to TransactionHistory columns."""
+
         return {}
+
+    @staticmethod
+    def yield_header(filepath, rows=4, max_bytes_per_row=9000):
+        """Yield rows from top of file.
+
+        """
+
+        if not os.path.isfile(filepath):
+            raise file_dne_exc(filepath)
+
+        with open(filepath, 'r') as handle:
+            lines = handle.readlines(max_bytes_per_row)
+            for i, line in enumerate(lines):
+                yield line
+                if i > rows:
+                    break
+
 
     @abstractmethod
     def is_date_valid(self, start, stop):
@@ -246,6 +269,25 @@ class Parser:
         time = datetime.datetime.strptime(date, format)
         return time.date()
 
+    # TODO add is_valid_file to find if the input file works for this parser
+    # remove the factory stuff that has the filename parsing etc.
+    @classmethod
+    @abstractmethod
+    def is_file_parsable(cls, filepath, header=None):
+        """True if this parser can decode the input file.
+
+        Args:
+            filepath(str): path to input data
+            header(str):  first few lines of the raw data, skip reading file if not None
+        Raises:
+            FileNotFoundError: file does not exist
+            IOError: file not readable or etc.
+        """
+
+        if not os.path.isfile(filepath):
+            raise file_dne_exc(filepath)
+
+        
 
 if __name__ == "__main__":
 

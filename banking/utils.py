@@ -6,6 +6,14 @@ Helper functions.
 
 import logging
 import coloredlogs
+import errno
+import os
+
+
+def file_dne_exc(filepath):
+    """Return FileNotFoundError given a filepath."""
+
+    return FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), filepath)
 
 
 def setup_logger(level):
