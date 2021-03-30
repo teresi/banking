@@ -45,7 +45,8 @@ class ParserImpl(Parser):
     }
 
     ACCOUNT_NUMBER = 8888  # MAGIC fake acount
-    FILE_PREFIX = "Acct_"  # MAGIC fake file formatting
+    FILE_PREFIX_PART = "Acct_"  # MAGIC fake file formatting
+    FILE_PREFIX = FILE_PREFIX_PART + ACCOUNT_NUMBER
 
     @classmethod
     def is_date_valid(cls, start, stop):
@@ -61,8 +62,7 @@ class ParserImpl(Parser):
     @classmethod
     def _check_filename(cls, filepath):
 
-        # MAGIC arbitrary format requires 'Acct_XXXX' in filename
-        account_header = cls.FILE_PREFIX + str(cls.ACCOUNT_NUMBER)
+        account_header = cls.FILE_PREFIX
         file_name = os.path.basename(filepath)
         return account_header not in file_name
 
@@ -79,10 +79,6 @@ class ParserImpl(Parser):
             max_rows = 8  # MAGIC arbitrary
             lines = cls.yield_header(filepath, rows=max_rows)
             header = "".join(lines)
-
-
-
-
 
 
 @pytest.yield_fixture
@@ -128,9 +124,18 @@ def test_init_raise_file_no_exist():
         ParserImpl("/this/filepath/does/not/exist/really")
 
 def test_is_parsable_bad_filename():
+    """Is a bad filename rejected?"""
 
     for file in temp_data(prefix="invalid_prefix"):
         assert not ParserImpl.is_file_parsable(file)
+
+def test_is_parsable_bad_contents():
+    """Is a file with bad contents rejected?"""
+
+    data = "this,is,the,wrong,header"
+    with temp_data(prefix=
+
+
 
 if __name__ == "__main__":
     pytest.main(['-s', __file__])  # for convenience
