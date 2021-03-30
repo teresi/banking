@@ -201,6 +201,7 @@ class Parser:
         with open(filepath, 'r') as handle:
             lines = handle.readlines(max_bytes_per_row)
             for i, line in enumerate(lines):
+                print(line)
                 yield line
                 if i > rows:
                     break
@@ -284,10 +285,6 @@ class Parser:
             IOError: file not readable or etc.
         """
 
-        if not os.path.isfile(filepath):
-            raise file_dne_exc(filepath)
-
-        
 
 if __name__ == "__main__":
 

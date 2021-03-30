@@ -46,11 +46,11 @@ class ParserImpl(Parser):
 
     ACCOUNT_NUMBER = 8888  # MAGIC fake acount
     FILE_PREFIX_PART = "Acct_"  # MAGIC fake file formatting
-    FILE_PREFIX = FILE_PREFIX_PART + ACCOUNT_NUMBER
+    FILE_PREFIX = FILE_PREFIX_PART + str(ACCOUNT_NUMBER)
 
     @classmethod
     def is_date_valid(cls, start, stop):
-        """"""
+        """True if the dates found are valid for this parser."""
 
         return start >= cls._MIN_DATE
 
@@ -61,10 +61,14 @@ class ParserImpl(Parser):
 
     @classmethod
     def _check_filename(cls, filepath):
+        """False if the filename is unexpected for this parser."""
 
         account_header = cls.FILE_PREFIX
         file_name = os.path.basename(filepath)
-        return account_header not in file_name
+        matched = account_header in file_name
+        if not matched:
+            logging.debug("{} is invalid for {}".format(file_name, cls.__name__))
+        return matched
 
     @classmethod
     def is_file_parsable(cls, filepath, header=None):
@@ -72,14 +76,13 @@ class ParserImpl(Parser):
         if not os.path.isfile(filepath):
             raise file_dne_exc(filepath)
 
-        if not cls._check_filename:
+        if not cls._check_filename(filepath):
             return False
 
-        if header is None:
-            max_rows = 8  # MAGIC arbitrary
-            lines = cls.yield_header(filepath, rows=max_rows)
-            header = "".join(lines)
+        lines = [l for l in cls.yield_header(filepath, rows=4)]
 
+        matched = all([h in lines[0] for h in cls.FIELD_NAMES])
+        return matched
 
 @pytest.yield_fixture
 def temp_dir():
@@ -97,11 +100,11 @@ def temp_file():
 def temp_data(prefix=None, suffix=".csv", data=None):
     """Temporary file with data."""
 
-    file = tempfile.NamedTemporaryFile(prefix=prefix, suffix=suffix)
-    if data is not None:
-        file.write(data)
-    yield file.name  # opening again by caller my not work in Windows?
-    file.close()
+    with tempfile.NamedTemporaryFile(prefix=prefix, suffix=suffix, mode='w+') as file:
+        if data is not None:
+            file.write(data)
+        file.seek(0)
+        yield file.name  # opening again by caller my not work in Windows?
 
 @pytest.yield_fixture
 def temp_bbt_file():
@@ -127,14 +130,21 @@ def test_is_parsable_bad_filename():
     """Is a bad filename rejected?"""
 
     for file in temp_data(prefix="invalid_prefix"):
-        assert not ParserImpl.is_file_parsable(file)
+        assert ParserImpl.is_file_parsable(file) == False
 
 def test_is_parsable_bad_contents():
     """Is a file with bad contents rejected?"""
 
     data = "this,is,the,wrong,header"
-    with temp_data(prefix=
+    for file in temp_data(prefix=None, suffix=".csv", data=data):
+        assert ParserImpl.is_file_parsable(file) == False
 
+def test_is_parsable_good_header():
+    """Is a file with a good header accepted?"""
+
+    data = ",".join(ParserImpl.FIELD_NAMES)
+    for file in temp_data(prefix=ParserImpl.FILE_PREFIX, suffix=".csv", data=data):
+        assert ParserImpl.is_file_parsable(file) == True
 
 
 if __name__ == "__main__":
