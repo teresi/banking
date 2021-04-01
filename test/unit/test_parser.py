@@ -70,28 +70,14 @@ class ParserImpl(Parser):
             logging.debug("{} is invalid for {}".format(file_name, cls.__name__))
         return matched
 
-    @classmethod
-    def is_file_parsable(cls, filepath, header=None):
-
-        if not os.path.isfile(filepath):
-            raise file_dne_exc(filepath)
-
-        if not cls._check_filename(filepath):
-            return False
-
-        lines = [l for l in cls.yield_header(filepath, rows=4)]
-
-        matched = all([h in lines[0] for h in cls.FIELD_NAMES])
-        return matched
-
-@pytest.yield_fixture
+@pytest.fixture
 def temp_dir():
     """Temporary directory."""
 
     with tempfile.TemporaryDirectory() as temp_dir:
         yield temp_dir
 
-@pytest.yield_fixture
+@pytest.fixture
 def temp_file():
 
     with tempfile.NamedTemporaryFile() as file:
@@ -106,7 +92,7 @@ def temp_data(prefix=None, suffix=".csv", data=None):
         file.seek(0)
         yield file.name  # opening again by caller my not work in Windows?
 
-@pytest.yield_fixture
+@pytest.fixture
 def temp_bbt_file():
     """Temporary BB&T transactions."""
 
@@ -126,21 +112,30 @@ def test_init_raise_file_no_exist():
     with pytest.raises(FileNotFoundError):
         ParserImpl("/this/filepath/does/not/exist/really")
 
+def test_check_header_read_file():
+    """Is a good header accepted?"""
+
+    data = ",".join(ParserImpl.FIELD_NAMES)
+    for file in temp_data(prefix=ParserImpl.FILE_PREFIX, suffix=".csv", data=data):
+        assert ParserImpl.check_header(file, header=data, row=0) == True
+        assert ParserImpl.is_file_parsable(file) == True
+
+def test_is_parsable_bad_contents():
+    """Is a file with bad header contents rejected?"""
+
+    data = "this,is,the,wrong,header"
+    for file in temp_data(prefix=None, suffix=".csv", data=data):
+        assert ParserImpl.check_header(file, row=0) == False
+        assert ParserImpl.is_file_parsable(file) == False
+
 def test_is_parsable_bad_filename():
     """Is a bad filename rejected?"""
 
     for file in temp_data(prefix="invalid_prefix"):
         assert ParserImpl.is_file_parsable(file) == False
 
-def test_is_parsable_bad_contents():
-    """Is a file with bad contents rejected?"""
-
-    data = "this,is,the,wrong,header"
-    for file in temp_data(prefix=None, suffix=".csv", data=data):
-        assert ParserImpl.is_file_parsable(file) == False
-
 def test_is_parsable_good_header():
-    """Is a file with a good header accepted?"""
+    """Is a file with a good filename and header accepted?"""
 
     data = ",".join(ParserImpl.FIELD_NAMES)
     for file in temp_data(prefix=ParserImpl.FILE_PREFIX, suffix=".csv", data=data):

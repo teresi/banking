@@ -150,19 +150,23 @@ class ParserFactory(object):
 
 
 class Parser:
-    """Base class for parsing the exported transaction histories (e.g. csv).
-
-    Requires the csv filename format of:  <BANK>_<ACCOUNT>_<DATE>.<ext>
-    The 'DATE' field can be: <YYYYMM> OR <YYYYMM>-<YYYYMM>; one month OR start-stop.
-    """
+    """Base class for parsing the exported transaction histories (e.g. csv)."""
 
     SUBCLASSES = {}
 
     def __init_subclass__(cls, **kwargs):
+        """Register implementation."""
+
         super().__init_subclass__(**kwargs)
         cls.SUBCLASSES[cls.__name__] = cls
 
     def __init__(self, filepath, logger=None):
+        """Initialize.
+
+        Args:
+            filepath(str): path to input data
+            logger(logging.Logger): logger, create new if None
+        """
 
         self.filepath = filepath
         self.logger = logger or logging.getLogger(__name__)
@@ -170,12 +174,6 @@ class Parser:
         if not os.path.isfile(self.filepath):
             raise FileNotFoundError(
                     errno.ENOENT, os.strerror(errno.ENOENT), self.filepath)
-
-    @abstractproperty
-    def VERSION(cls):  # TODO remove?
-        """Version of the parser."""
-
-        return int()
 
     @abstractproperty
     def INSTITUTION(cls):
@@ -188,24 +186,6 @@ class Parser:
         """Dict of subclass column names to TransactionHistory columns."""
 
         return {}
-
-    @staticmethod
-    def yield_header(filepath, rows=4, max_bytes_per_row=9000):
-        """Yield rows from top of file.
-
-        """
-
-        if not os.path.isfile(filepath):
-            raise file_dne_exc(filepath)
-
-        with open(filepath, 'r') as handle:
-            lines = handle.readlines(max_bytes_per_row)
-            for i, line in enumerate(lines):
-                print(line)
-                yield line
-                if i > rows:
-                    break
-
 
     @abstractmethod
     def is_date_valid(self, start, stop):
@@ -225,57 +205,79 @@ class Parser:
         return TransactionHistory()
 
     @staticmethod
-    def _last_day_of_month(day):
+    def _last_day_of_month(day):  # TODO move out of class?
         """The last day of the month from the date provided."""
 
         next_month = day.replace(day=28) + datetime.timedelta(days=4)
         return next_month - datetime.timedelta(days=next_month.day)
 
-    @classmethod
-    def parse_date(cls, date_str):
-        """Convert the date to start / stop times.
+    # TODO remove, replace with parsing dates in the file
+#    @classmethod
+#    def parse_date(cls, date_str):
+#        """Convert the date to start / stop times.
+#
+#        If stop is empty, uses last day of the month from start.
+#
+#        Args:
+#            date_str(str): the date, YYYYMM or YYYYMM-YYYYMM, start & start-stop.
+#
+#        Returns:
+#            (datetime.datetime): start date.
+#            (datetime.datetime): stop date.
+#        """
+#
+#        if "-" in date_str:
+#            d0, d1 = date_str.split("-")
+#            start = cls._parse_date(d0)
+#            stop = cls._parse_date(d1)
+#        else:
+#            start = cls._parse_date(date_str)
+#            stop = cls._last_day_of_month(start)
+#
+#        return start, stop
 
-        If stop is empty, uses last day of the month from start.
+    # TODO remove, replace with parsing dates in the file
+#    @classmethod
+#    def _parse_date(cls, date):
+#        """Convert the expected date sub-string to datetime."""
+#
+#        format = ""
+#        if len(date) == 6:
+#            format = "%Y%M"  # YYYYMM
+#        elif len(date) == 8:
+#            format = "%Y%M%d"  # YYYYMMDD
+#        else:
+#            raise ValueError("date is not YYYYMM or YYYYMMDD:  {}".format(date))
+#
+#        time = datetime.datetime.strptime(date, format)
+#        return time.date()
+
+    @classmethod
+    def check_header(cls, filepath, header=None, row=0, delim=','):
+        """True if all the expected field names are in the header.
 
         Args:
-            date_str(str): the date, YYYYMM or YYYYMM-YYYYMM, start & start-stop.
-
+            filepath(str): path to input data file
+            header(str): header contents, read file if None
+            row(int): row index of the header line (zero based)
+            delim(str): char delimiter
         Returns:
-            (datetime.datetime): start date.
-            (datetime.datetime): stop date.
+            (bool): true if header has all the expected fields
         """
 
-        if "-" in date_str:
-            d0, d1 = date_str.split("-")
-            start = cls._parse_date(d0)
-            stop = cls._parse_date(d1)
+        if header is None:
+            line = [l for l in cls.yield_header(filepath, rows=row)][row]
         else:
-            start = cls._parse_date(date_str)
-            stop = cls._last_day_of_month(start)
+            line = str(header).split(delim)
 
-        return start, stop
+        matched = all([h in line for h in cls.FIELD_NAMES])
+        return matched
 
     @classmethod
-    def _parse_date(cls, date):
-        """Convert the expected date sub-string to datetime."""
-
-        format = ""
-        if len(date) == 6:
-            format = "%Y%M"  # YYYYMM
-        elif len(date) == 8:
-            format = "%Y%M%d"  # YYYYMMDD
-        else:
-            raise ValueError("date is not YYYYMM or YYYYMMDD:  {}".format(date))
-
-        time = datetime.datetime.strptime(date, format)
-        return time.date()
-
-    # TODO add is_valid_file to find if the input file works for this parser
-    # remove the factory stuff that has the filename parsing etc.
-    @classmethod
-    @abstractmethod
     def is_file_parsable(cls, filepath, header=None):
         """True if this parser can decode the input file.
+
+        Tests the filepath and header.
 
         Args:
             filepath(str): path to input data
@@ -284,6 +286,35 @@ class Parser:
             FileNotFoundError: file does not exist
             IOError: file not readable or etc.
         """
+
+        if not os.path.isfile(filepath):
+            raise file_dne_exc(filepath)
+
+        if not cls._check_filename(filepath):
+            return False
+
+        return cls.check_header(filepath, header)
+
+    @staticmethod
+    def yield_header(filepath, rows=4, max_bytes_per_row=9000):
+        """Yield rows from top of file.
+
+        Args:
+            filepath(str): path to the file
+            rows(int): maximum rows to read
+            max_bytes_per_row(int): cutoff line at bye count
+        """
+
+        if not os.path.isfile(filepath):
+            raise file_dne_exc(filepath)
+
+        with open(filepath, 'r') as handle:
+            lines = handle.readlines(max_bytes_per_row)
+            for i, line in enumerate(lines):
+                print(line)
+                yield line
+                if i > rows:
+                    break
 
 
 if __name__ == "__main__":
