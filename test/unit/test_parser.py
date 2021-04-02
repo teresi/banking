@@ -9,6 +9,7 @@ import tempfile
 import coloredlogs
 import datetime
 import os
+from contextlib import contextmanager
 
 import pytest
 
@@ -20,13 +21,11 @@ LOGGER = logging.getLogger(__name__)
 coloredlogs.install(level=logging.DEBUG)
 
 
-FAKE_ACCT="8888"
-FAKE_TRANSACTIONS="""Date,Transaction Type,Check Number,Description,Amount,Daily Posted Balance
-01/01/2020,Credit,,LEGIT EMPLOYER,$+1000,$0.00
-01/02/2020,Debit,,ESTABLISHMENT STORE DEBIT CARD,($42),$958
-02/01/2020,Deposit,,TRANSFER FROM,$+100,
-02/03/2020,POS,,ESTABLISHMENT DEBIT PURCHASE,($42),$1016
-"""
+FAKE_TRANSACTIONS="""date,type,check,note,amount
+01/01/2020,Credit,,LEGIT EMPLOYER,$+1000
+01/02/2020,Debit,,ESTABLISHMENT STORE DEBIT CARD,($42)
+02/01/2020,Deposit,,TRANSFER FROM,$+3.50,
+02/03/2020,POS,,ESTABLISHMENT DEBIT PURCHASE,($3.50)"""
 
 
 class ParserImpl(Parser):
@@ -70,6 +69,7 @@ class ParserImpl(Parser):
             logging.debug("{} is invalid for {}".format(file_name, cls.__name__))
         return matched
 
+
 @pytest.fixture
 def temp_dir():
     """Temporary directory."""
@@ -77,12 +77,15 @@ def temp_dir():
     with tempfile.TemporaryDirectory() as temp_dir:
         yield temp_dir
 
+
 @pytest.fixture
 def temp_file():
 
     with tempfile.NamedTemporaryFile() as file:
         return file.name
 
+
+@contextmanager
 def temp_data(prefix=None, suffix=".csv", data=None):
     """Temporary file with data."""
 
@@ -92,13 +95,24 @@ def temp_data(prefix=None, suffix=".csv", data=None):
         file.seek(0)
         yield file.name  # opening again by caller my not work in Windows?
 
-@pytest.fixture
-def temp_bbt_file():
-    """Temporary BB&T transactions."""
 
-    prefix = "Acct_" + FAKE_BBT_ACCT
-    suffix = ".csv"
-    yield temp_data(prefix=prefix, suffix=suffix, data=FAKE_BBT_TRANSACTIONS)
+@pytest.fixture
+def temp_valid_input_file():
+
+    with temp_data(
+        prefix=ParserImpl.FILE_PREFIX,
+        suffix='.csv',
+        data=FAKE_TRANSACTIONS) as file_name:
+
+        yield file_name
+
+
+@pytest.fixture
+def parser(temp_valid_input_file):
+
+    parser = ParserImpl(temp_valid_input_file)
+    yield parser
+
 
 def test_subclass_is_registered(temp_file):
     """Does the sub class get registered?"""
@@ -106,40 +120,64 @@ def test_subclass_is_registered(temp_file):
     assert ParserImpl.__name__ in Parser.SUBCLASSES
     assert ParserImpl in Parser.SUBCLASSES.values()
 
+
 def test_init_raise_file_no_exist():
     """Does init raise if file does not exist?"""
 
     with pytest.raises(FileNotFoundError):
         ParserImpl("/this/filepath/does/not/exist/really")
 
+
 def test_check_header_read_file():
     """Is a good header accepted?"""
 
     data = ",".join(ParserImpl.FIELD_NAMES)
-    for file in temp_data(prefix=ParserImpl.FILE_PREFIX, suffix=".csv", data=data):
+    with temp_data(prefix=ParserImpl.FILE_PREFIX, suffix=".csv", data=data) as file:
         assert ParserImpl.check_header(file, header=data, row=0) == True
         assert ParserImpl.is_file_parsable(file) == True
+
 
 def test_is_parsable_bad_contents():
     """Is a file with bad header contents rejected?"""
 
     data = "this,is,the,wrong,header"
-    for file in temp_data(prefix=None, suffix=".csv", data=data):
+    with temp_data(prefix=None, suffix=".csv", data=data) as file:
         assert ParserImpl.check_header(file, row=0) == False
         assert ParserImpl.is_file_parsable(file) == False
+
 
 def test_is_parsable_bad_filename():
     """Is a bad filename rejected?"""
 
-    for file in temp_data(prefix="invalid_prefix"):
+    with temp_data(prefix="invalid_prefix") as file:
         assert ParserImpl.is_file_parsable(file) == False
+
 
 def test_is_parsable_good_header():
     """Is a file with a good filename and header accepted?"""
 
     data = ",".join(ParserImpl.FIELD_NAMES)
-    for file in temp_data(prefix=ParserImpl.FILE_PREFIX, suffix=".csv", data=data):
+    with temp_data(prefix=ParserImpl.FILE_PREFIX, suffix=".csv", data=data) as file:
         assert ParserImpl.is_file_parsable(file) == True
+
+
+def test_parse_text_frame_rows(parser):
+    """Does the frame read give the right number of transactions?"""
+
+    # MAGIC our fake data has the first row as the header
+    frame = parser.parse_textfile(header_index=0)
+    # MAGIC -1 for the header
+    n_transactions = len(FAKE_TRANSACTIONS.split('\n')) - 1
+    rows, cols = frame.shape
+    assert n_transactions == rows
+
+
+def test_parse_text_frame_sum(parser):
+    """Does reading the data give the right sum for debit / credit?"""
+
+    sum = -1
+
+    assert sum == 1000-42
 
 
 if __name__ == "__main__":
