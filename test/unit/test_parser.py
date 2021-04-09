@@ -46,9 +46,10 @@ def _convert_amount(price):
 
 
 def _convert_date(date_field):
-    """Parse time into datetime."""
+    """Parse time into date, form of 01/31/1970"""
 
-    return datetime.datetime.strptime(str(date_field), "%M/%d/%Y")
+    date = datetime.datetime.strptime(str(date_field), "%m/%d/%Y").date()
+    return date
 
 
 class ParserImpl(Parser):
@@ -81,6 +82,15 @@ class ParserImpl(Parser):
 
         return TransactionHistory()
 
+    def panda_frame(self):
+        """Parse, but return the panda frame."""
+
+        frame = self.parse_textfile(
+            header_index=0,
+            header_to_converter=self.col2converter()
+        )
+        return frame
+
     @classmethod
     def _check_filename(cls, filepath):
         """False if the filename is unexpected for this parser."""
@@ -101,6 +111,7 @@ class ParserImpl(Parser):
             "amount": _convert_amount
         }
         return _col2convert
+
 
 
 @pytest.fixture
@@ -206,15 +217,25 @@ def test_parse_text_frame_rows(parser):
 
 
 def test_parse_text_frame_sum(parser):
-    """Do the column converters work for the price?"""
+    """Does the column converter work for the price?"""
 
-    frame = parser.parse_textfile(
-        header_index=0,
-        header_to_converter=parser.col2converter()
-    )
+    frame = parser.panda_frame()
     total = frame['amount'].sum()
-
     assert total == 1000-42  # MAGIC from our FAKE_TRANSACTIONS above
+
+
+def test_parse_text_frame_dates(parser):
+    """Does the column converter work for dates?"""
+
+    frame = parser.panda_frame()
+    expected = [
+        datetime.date(2020,1,1),
+        datetime.date(2020,1,2),
+        datetime.date(2020,2,1),
+        datetime.date(2020,2,3)
+    ]
+    for parsed, expected in zip(frame['date'], expected):
+        assert parsed == expected
 
 
 if __name__ == "__main__":
