@@ -10,6 +10,7 @@ import coloredlogs
 import datetime
 import os
 from contextlib import contextmanager
+from decimal import Decimal
 
 import pytest
 
@@ -21,11 +22,33 @@ LOGGER = logging.getLogger(__name__)
 coloredlogs.install(level=logging.DEBUG)
 
 
+# MAGIC arbitrary values for testing
 FAKE_TRANSACTIONS="""date,type,check,note,amount
 01/01/2020,Credit,,LEGIT EMPLOYER,$+1000
 01/02/2020,Debit,,ESTABLISHMENT STORE DEBIT CARD,($42)
 02/01/2020,Deposit,,TRANSFER FROM,$+3.50,
 02/03/2020,POS,,ESTABLISHMENT DEBIT PURCHASE,($3.50)"""
+
+
+def _convert_amount(price):
+    """Amount value to float."""
+
+    if price.startswith("($"):  # negative
+        number = price[2:-1]  # remove ($...)
+        return -1 * Decimal(number)
+    elif price.startswith("$+"):  # positive
+        number = price[2:]  # remove $+
+        return +1 * Decimal(number)
+    else:
+        msg = "can't parse price, doesn't start with '($' or '$+': {}".format(price)
+        logging.getLogger().error(msg)
+        return None
+
+
+def _convert_date(date_field):
+    """Parse time into datetime."""
+
+    return datetime.datetime.strptime(str(date_field), "%M/%d/%Y")
 
 
 class ParserImpl(Parser):
@@ -68,6 +91,16 @@ class ParserImpl(Parser):
         if not matched:
             logging.debug("{} is invalid for {}".format(file_name, cls.__name__))
         return matched
+
+    @classmethod
+    def col2converter(cls):
+        """Map column name to function to parse the value."""
+
+        _col2convert = {
+            "date": _convert_date,
+            "amount": _convert_amount
+        }
+        return _col2convert
 
 
 @pytest.fixture
@@ -173,11 +206,15 @@ def test_parse_text_frame_rows(parser):
 
 
 def test_parse_text_frame_sum(parser):
-    """Does reading the data give the right sum for debit / credit?"""
+    """Do the column converters work for the price?"""
 
-    sum = -1
+    frame = parser.parse_textfile(
+        header_index=0,
+        header_to_converter=parser.col2converter()
+    )
+    total = frame['amount'].sum()
 
-    assert sum == 1000-42
+    assert total == 1000-42  # MAGIC from our FAKE_TRANSACTIONS above
 
 
 if __name__ == "__main__":

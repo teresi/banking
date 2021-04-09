@@ -28,15 +28,19 @@ FAKE_TRANSACTIONS="""Date,Transaction Type,Check Number,Description,Amount,Daily
 
 
 def _convert_posted(posted_field):
+
     return posted_field == "posted"
 
 
 def _convert_date(date_field):
     """Parse time into datetime."""
+
     return datetime.datetime.strptime(str(date_field), "%M/%d/%y")
 
 
 def _convert_category(category):
+    """Parse category from bank to user category e.g. Exxon --> gas."""
+
     return category  # TODO add mapping
 
 
