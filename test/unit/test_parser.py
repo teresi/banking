@@ -250,5 +250,15 @@ def test_remap_cols():
         assert all(input_frame[_in] == mapped_frame[_out])
 
 
+def test_remap_populated(parser):
+    """Are all the missing columns added after a remap?"""
+
+    input_frame = parser.panda_frame()
+    mapped_frame = parser.remap_cols(input_frame)
+    mapped_cols = [c for c in mapped_frame.columns]
+    for expected_col in TransactionColumns.names():
+        assert expected_col in mapped_cols
+
+
 if __name__ == "__main__":
     pytest.main(['-s', __file__])  # for convenience
