@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 
+
 """
-Helper functions.
+Helper functions and data.
 """
 
+
+import datetime
+import errno
+from enum import Enum, unique, auto
 import logging
 import coloredlogs
-import errno
 import os
-import datetime
 
 
 def file_dne_exc(filepath):
@@ -38,3 +41,18 @@ def last_day_of_month(day):
     next_month = day.replace(day=28) + datetime.timedelta(days=4)
     return next_month - datetime.timedelta(days=next_month.day)
 
+@unique
+class TransactionColumns(Enum):
+    """The names for the columns present in a TransactionHistory data frame."""
+
+    DATE = auto()
+    CHECK_NO = auto()
+    AMOUNT = auto()
+    DESCRIPTION = auto()
+    BANK = auto()
+    ACCOUNT = auto()
+    CATEGORY = auto()
+
+    @classmethod
+    def names(cls):
+        return (col.name for col in cls)

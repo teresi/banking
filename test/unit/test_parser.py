@@ -13,10 +13,10 @@ from contextlib import contextmanager
 from decimal import Decimal
 
 import pytest
+import pandas
 
 from banking.parser import Parser
-from banking.transaction import TransactionColumns, TransactionHistory
-from banking.utils import file_dne_exc
+from banking.utils import file_dne_exc, TransactionColumns
 
 LOGGER = logging.getLogger(__name__)
 coloredlogs.install(level=logging.DEBUG)
@@ -60,12 +60,12 @@ class ParserImpl(Parser):
     VERSION = 1
     INSTITUTION = "Totally Legit Bank"
     DELIMETER = ","
-    FIELD_NAMES = ["date", "amount", "note"]
     FIELD_2_TRANSACTION = {
         "date": TransactionColumns.DATE.name,
         "note": TransactionColumns.DESCRIPTION.name,
         "amount": TransactionColumns.AMOUNT.name,
     }
+    FIELD_NAMES = ["date", "amount", "note"]
 
     ACCOUNT_NUMBER = 8888  # MAGIC fake acount
     FILE_PREFIX_PART = "Acct_"  # MAGIC fake file formatting
@@ -161,8 +161,8 @@ def parser(temp_valid_input_file):
 def test_subclass_is_registered(temp_file):
     """Does the sub class get registered?"""
 
-    assert ParserImpl.__name__ in Parser.SUBCLASSES
-    assert ParserImpl in Parser.SUBCLASSES.values()
+    assert ParserImpl.__name__ in Parser._SUBCLASSES
+    assert ParserImpl in Parser._SUBCLASSES.values()
 
 
 def test_init_raise_file_no_exist():
@@ -236,6 +236,18 @@ def test_parse_text_frame_dates(parser):
     ]
     for parsed, expected in zip(frame['date'], expected):
         assert parsed == expected
+
+
+def test_remap_cols():
+    """Are the column names remapped?"""
+
+    input_keys = [k for k in ParserImpl.FIELD_2_TRANSACTION.keys()]
+    input_data = {k: [i] for i,k in enumerate(input_keys)}
+    input_frame = pandas.DataFrame.from_dict(input_data)
+    mapped_frame = ParserImpl.remap_cols(input_frame)
+    mapped_keys = [c for c in mapped_frame.columns]
+    for _in, _out in zip(input_keys, mapped_keys):
+        assert all(input_frame[_in] == mapped_frame[_out])
 
 
 if __name__ == "__main__":

@@ -15,22 +15,24 @@ from abc import abstractmethod, abstractproperty
 
 import pandas as pd
 
-from banking.transaction import TransactionHistory
-from banking.utils import file_dne_exc
+from banking.utils import file_dne_exc, TransactionColumns
 
 # TODO add history class that wraps a numpy array (or dataframe) and defines the columns
 
 
 class Parser:
-    """Base class for parsing the exported transaction histories (e.g. csv)."""
+    """Base class Factory to produce banking transacations in pandas.DataFrame format.
 
-    SUBCLASSES = {}
+    Implement the functions to check and convert the input data.
+    """
+
+    _SUBCLASSES = {}
 
     def __init_subclass__(cls, **kwargs):
         """Register implementation."""
 
         super().__init_subclass__(**kwargs)
-        cls.SUBCLASSES[cls.__name__] = cls
+        cls._SUBCLASSES[cls.__name__] = cls
 
     def __init__(self, filepath, logger=None):
         """Initialize.
@@ -55,31 +57,48 @@ class Parser:
 
     @abstractproperty
     def FIELD_2_TRANSACTION(self):
-        """Dict of subclass column names to TransactionHistory columns."""
+        """Dict of subclass column names to TransactionColumns names."""
 
         return {}
 
     @abstractproperty
     def FIELD_NAMES(self):
-        """Column headers, unordered list of string names."""
+        """Column headers of the input file, unordered."""
 
         return []
 
     @abstractproperty
     def DELIMITER(self):
-        """Data delimiter, e.g. ','"""
+        """Column separator, e.g. ','"""
 
         return ","
 
+    @abstractproperty
+    def COL_2_CONVERTER(self):
+        """Dictionary of functions to convert column values from input file.
+
+        Returns: dict(str: callable(str))
+        """
+
+        return {}
+
     @abstractmethod
     def parse(self):
-        """Return a TransactionHistory representation of the data."""
+        """Return transactions as a panda frame with our column formatting.
 
-        return TransactionHistory()
+        Returns:
+            (pandas.DataFrame): frame with TransactionColumns column names
+        """
+
+        frame_raw = self.parse_textfile(header_to_converter=self.COL_2_CONVERTER)
+        frame_mapped = self.remap_cols(frame_raw)
+        return frame_mapped
 
     @classmethod
     def check_header(cls, filepath, header=None, row=0, delim=','):
         """True if all the expected field names are in the header.
+
+        Used to select a parser for an input file based on the header contents.
 
         Args:
             filepath(str): path to input data file
@@ -89,6 +108,9 @@ class Parser:
         Returns:
             (bool): true if header has all the expected fields
         """
+
+        if row < 0:
+            raise ValueError("row index of %i is < 0" % row)
 
         if header is None:
             line = [l for l in cls.yield_header(filepath, rows=row)][row]
@@ -102,7 +124,7 @@ class Parser:
     def is_file_parsable(cls, filepath, header=None):
         """True if this parser can decode the input file.
 
-        Tests the filepath and header.
+        Used to select a parser for an input file based on the filepath and header.
 
         Args:
             filepath(str): path to input data
@@ -127,7 +149,7 @@ class Parser:
         Args:
             filepath(str): path to the file
             rows(int): maximum rows to read
-            max_bytes_per_row(int): cutoff line at bye count
+            max_bytes_per_row(int): cutoff line at byte count
         """
 
         if not os.path.isfile(filepath):
@@ -146,6 +168,8 @@ class Parser:
         Args:
             header_index(int): row index of header (column names),
             header_to_converter(dict(str: callable)): functions to convert row contents
+        Returns:
+            pandas.DataFrame: the data
         """
 
         frame = pd.read_csv(
@@ -157,3 +181,20 @@ class Parser:
         )
         return frame
 
+    @classmethod
+    def remap_cols(cls, frame):
+        """Rename the columns to our convention.
+
+        Args:
+            frame(pandas.DataFrame): the data
+        Returns:
+            pandas.DataFrame: remapped data
+        """
+
+        remapped = frame.rename(columns=cls.FIELD_2_TRANSACTION)
+        expected = [n for n in TransactionColumns.names()]
+        missing = [col for col in expected
+                    if col not in remapped.columns]
+        for col in missing:
+            remapped[col] = None
+        return remapped
