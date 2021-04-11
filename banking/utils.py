@@ -52,6 +52,7 @@ class TransactionColumns(Enum):
     BANK = auto()
     ACCOUNT = auto()
     CATEGORY = auto()
+    POSTED_BALANCE = auto()
 
     @classmethod
     def names(cls):

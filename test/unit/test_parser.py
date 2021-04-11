@@ -38,6 +38,7 @@ def _convert_amount(price):
         return -1 * Decimal(number)
     elif price.startswith("$+"):  # positive
         number = price[2:]  # remove $+
+        print("{} --> {}".format(number, Decimal(number)))
         return +1 * Decimal(number)
     else:
         msg = "can't parse price, doesn't start with '($' or '$+': {}".format(price)
@@ -78,16 +79,16 @@ class ParserImpl(Parser):
         return start >= cls._MIN_DATE
 
     def parse(self):
-        """"""
+        """The data frame with our standard column naming convention."""
 
-        return TransactionHistory()
+        return super().parse()
 
     def panda_frame(self):
         """Parse, but return the panda frame."""
 
         frame = self.parse_textfile(
             header_index=0,
-            header_to_converter=self.col2converter()
+            header_to_converter=self.COL_2_CONVERTER
         )
         return frame
 
@@ -102,8 +103,8 @@ class ParserImpl(Parser):
             logging.debug("{} is invalid for {}".format(file_name, cls.__name__))
         return matched
 
-    @classmethod
-    def col2converter(cls):
+    @property
+    def COL_2_CONVERTER(cls):
         """Map column name to function to parse the value."""
 
         _col2convert = {
@@ -111,7 +112,6 @@ class ParserImpl(Parser):
             "amount": _convert_amount
         }
         return _col2convert
-
 
 
 @pytest.fixture
@@ -258,6 +258,26 @@ def test_remap_populated(parser):
     mapped_cols = [c for c in mapped_frame.columns]
     for expected_col in TransactionColumns.names():
         assert expected_col in mapped_cols
+
+def test_parse_sum(parser):
+    """Does the `parse` function return the right amount?"""
+
+    frame = parser.parse()
+    print(frame['AMOUNT'])
+    total = frame[TransactionColumns.AMOUNT.name].sum()
+    assert total == 1000-42
+
+def test_parse_reject():
+    """Does the `parse` function reject a bad file?"""
+
+    
+    with pytest.raises(ValueError):
+        data = "this,is,the,wrong,header"
+        with temp_data(prefix=None, suffix=".csv", data=data) as file:
+            parser = ParserImpl(file)
+            parser.parse()
+
+
 
 
 if __name__ == "__main__":

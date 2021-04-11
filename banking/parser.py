@@ -24,6 +24,8 @@ class Parser:
     """Base class Factory to produce banking transacations in pandas.DataFrame format.
 
     Implement the functions to check and convert the input data.
+    Call `is_file_parsable` to check if this parser is valid for the input file.
+    Call `parse` to produce the frame.
     """
 
     _SUBCLASSES = {}
@@ -49,31 +51,36 @@ class Parser:
             raise FileNotFoundError(
                     errno.ENOENT, os.strerror(errno.ENOENT), self.filepath)
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def INSTITUTION(cls):
         """The name of the bank."""
 
         return str()
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def FIELD_2_TRANSACTION(self):
         """Dict of subclass column names to TransactionColumns names."""
 
         return {}
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def FIELD_NAMES(self):
         """Column headers of the input file, unordered."""
 
         return []
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def DELIMITER(self):
         """Column separator, e.g. ','"""
 
         return ","
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def COL_2_CONVERTER(self):
         """Dictionary of functions to convert column values from input file.
 
@@ -89,6 +96,10 @@ class Parser:
         Returns:
             (pandas.DataFrame): frame with TransactionColumns column names
         """
+
+        if not self.is_file_parsable(self.filepath):
+            raise ValueError("cannot parse input file, invalid implementation {}:  {}"
+                            .format(self.__class__.__name__, self.filepath))
 
         frame_raw = self.parse_textfile(header_to_converter=self.COL_2_CONVERTER)
         frame_mapped = self.remap_cols(frame_raw)
