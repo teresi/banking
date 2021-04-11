@@ -12,12 +12,9 @@ import logging
 import errno
 
 from abc import abstractmethod, abstractproperty
-
 import pandas as pd
 
 from banking.utils import file_dne_exc, TransactionColumns
-
-# TODO add history class that wraps a numpy array (or dataframe) and defines the columns
 
 
 class Parser:
@@ -104,6 +101,14 @@ class Parser:
         frame_raw = self.parse_textfile(header_to_converter=self.COL_2_CONVERTER)
         frame_mapped = self.remap_cols(frame_raw)
         return frame_mapped
+
+
+    @classmethod
+    @abstractmethod
+    def _check_filename(cls, filepath):
+        """False if the filename is unexpected for this parser."""
+
+        return False
 
     @classmethod
     def check_header(cls, filepath, header=None, row=0, delim=','):

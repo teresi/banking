@@ -31,7 +31,7 @@ FAKE_TRANSACTIONS="""date,type,check,note,amount
 
 
 def _convert_amount(price):
-    """Amount value to float."""
+    """Dollar to Decimal:$(X) for negatives, $+X for positives."""
 
     if price.startswith("($"):  # negative
         number = price[2:-1]  # remove ($...)
@@ -58,7 +58,6 @@ class ParserImpl(Parser):
 
     _MIN_DATE = datetime.date(1970, 1, 1)  # MAGIC arbirtrary
 
-    VERSION = 1
     INSTITUTION = "Totally Legit Bank"
     DELIMETER = ","
     FIELD_2_TRANSACTION = {
@@ -259,6 +258,7 @@ def test_remap_populated(parser):
     for expected_col in TransactionColumns.names():
         assert expected_col in mapped_cols
 
+
 def test_parse_sum(parser):
     """Does the `parse` function return the right amount?"""
 
@@ -267,17 +267,15 @@ def test_parse_sum(parser):
     total = frame[TransactionColumns.AMOUNT.name].sum()
     assert total == 1000-42
 
+
 def test_parse_reject():
     """Does the `parse` function reject a bad file?"""
 
-    
     with pytest.raises(ValueError):
         data = "this,is,the,wrong,header"
         with temp_data(prefix=None, suffix=".csv", data=data) as file:
             parser = ParserImpl(file)
             parser.parse()
-
-
 
 
 if __name__ == "__main__":
