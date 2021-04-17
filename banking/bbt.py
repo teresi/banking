@@ -8,6 +8,7 @@ import datetime
 from decimal import Decimal
 import csv
 import logging
+import os
 
 import numpy as np
 import pandas as pd
@@ -51,11 +52,14 @@ def _convert_category(category):
 def _convert_check(check_number):
     """Parse number for the check, if used."""
 
+    # NOTE have observed NaN / floats in some cases?
     if not check_number:
-        # BUG missing check no. sometimes get converted to NaN, and then real ones to floats (b/c a Nan is a float and it casts the ints)
         return None
-    else:
+
+    try:
         return np.uint16(check_number)
+    except ValueError:  # e.g. empty string
+        return None
 
 
 class Bbt(Parser):

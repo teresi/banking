@@ -9,7 +9,6 @@ import tempfile
 import coloredlogs
 import datetime
 import os
-from contextlib import contextmanager
 from decimal import Decimal
 
 import pytest
@@ -17,6 +16,7 @@ import pandas
 
 from banking.parser import Parser
 from banking.utils import file_dne_exc, TransactionColumns
+from banking.utils import temp_data
 
 LOGGER = logging.getLogger(__name__)
 coloredlogs.install(level=logging.DEBUG)
@@ -126,17 +126,6 @@ def temp_file():
 
     with tempfile.NamedTemporaryFile() as file:
         return file.name
-
-
-@contextmanager
-def temp_data(prefix=None, suffix=".csv", data=None):
-    """Temporary file with data."""
-
-    with tempfile.NamedTemporaryFile(prefix=prefix, suffix=suffix, mode='w+') as file:
-        if data is not None:
-            file.write(data)
-        file.seek(0)
-        yield file.name  # opening again by caller my not work in Windows?
 
 
 @pytest.fixture

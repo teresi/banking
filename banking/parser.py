@@ -102,7 +102,6 @@ class Parser:
         frame_mapped = self.remap_cols(frame_raw)
         return frame_mapped
 
-
     @classmethod
     @abstractmethod
     def _check_filename(cls, filepath):

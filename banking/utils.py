@@ -9,6 +9,8 @@ Helper functions and data.
 import datetime
 import errno
 from enum import Enum, unique, auto
+from contextlib import contextmanager
+import tempfile
 import logging
 import coloredlogs
 import os
@@ -41,6 +43,7 @@ def last_day_of_month(day):
     next_month = day.replace(day=28) + datetime.timedelta(days=4)
     return next_month - datetime.timedelta(days=next_month.day)
 
+
 @unique
 class TransactionColumns(Enum):
     """The names for the columns present in a TransactionHistory data frame."""
@@ -57,3 +60,26 @@ class TransactionColumns(Enum):
     @classmethod
     def names(cls):
         return (col.name for col in cls)
+
+
+@contextmanager
+def temp_data(prefix=None, suffix=".csv", data=None):
+    """Temporary file with data.
+
+    Args:
+        prefix(str): filename prefix
+        suffix(str): filename extension
+        data(str): write data to the file
+
+    Yields:
+        (filehandle) the file (
+    """
+
+    with tempfile.NamedTemporaryFile(prefix=prefix, suffix=suffix, mode='w+') as file:
+        if data is not None:
+            file.write(data)
+        file.seek(0)
+        yield file.name  # opening again by caller my not work in Windows?
+
+
+
