@@ -40,15 +40,33 @@ def _convert_date(date_field):
     return date
 
 
-def _convert_category(category):
-    """Parse category from bank to user category e.g. Exxon --> gas."""
+def _convert_category(description):
+    """Parse description from bank to user category e.g. Exxon --> gas."""
 
     # FUTURE implement real solution, this is just proof of concept
-    cat = category.lower()
+    # maybe something like this?
+    # mask = df.keyword.str.contains('+', regex=False)
+    # df.loc[~mask, 'keyword'] = "[" + df.loc[~mask, 'keyword'] + "]"
 
-    if "salary" in cat:
-        return Cats.SALARY
-    return category  # TODO add mapping
+    cat_out = Cats.UNKNOWN
+    if description is None:
+        return cat_out
+
+    desc = str(description).lower()
+    if "salary" in desc:
+        cat_out = Cats.SALARY
+    elif "verizon" in desc:
+        cat_out = Cats.COMMUNICATIONS
+    elif "moneyline fid" in desc:
+        cat_out = Cats.INVESTMENTS
+    elif "kroger" in desc or "giant" in desc:
+        cat_out = Cats.GROCERIES
+    elif "va dmv" in desc:
+        cat_out = Cats.TAXES
+    elif "dental" in desc or "walgreens" in desc:
+        cat_out = Cats.MEDICAL
+
+    return cat_out.name
 
 
 def _convert_check(check_number):
@@ -119,7 +137,13 @@ class Bbt(Parser):
             (pandas.DataFrame): frame with TransactionColumns column names
         """
 
-        return super().parse()
+        frame = super().parse()
+
+        # FUTURE is there a vectorized form of this in pandas?
+        desc_name = TransactionColumns.DESCRIPTION.name
+        frame[TransactionColumns.CATEGORY.name] = frame[desc_name].apply(_convert_category)
+
+        return frame
 
     @classmethod
     def _check_filename(cls, filepath):
@@ -135,4 +159,3 @@ class Bbt(Parser):
         # MAGIC bbt convention to have 'Acct_XXXX' as prefix
         prefix = "Acct_" + str(cls.ACCOUNT)
         return file_name.startswith(prefix)
-
