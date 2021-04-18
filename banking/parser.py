@@ -55,16 +55,16 @@ class Parser:
 
         return str()
 
-    @property
+    @classmethod
     @abstractmethod
-    def FIELD_2_TRANSACTION(self):
+    def field_2_transaction(self):
         """Dict of subclass column names to TransactionColumns names."""
 
         return {}
 
-    @property
+    @classmethod
     @abstractmethod
-    def FIELD_NAMES(self):
+    def field_names(self):
         """Column headers of the input file, unordered."""
 
         return []
@@ -132,7 +132,7 @@ class Parser:
         else:
             line = str(header).split(delim)
 
-        matched = all([h in line for h in cls.FIELD_NAMES])
+        matched = all([h in line for h in cls.field_names()])
         return matched
 
     @classmethod
@@ -191,7 +191,7 @@ class Parser:
             self.filepath,
             header=header_index,
             delimiter=self.DELIMITER,
-            usecols=self.FIELD_NAMES,
+            usecols=self.field_names(),
             converters=header_to_converter,
         )
         return frame
@@ -206,7 +206,7 @@ class Parser:
             pandas.DataFrame: remapped data
         """
 
-        remapped = frame.rename(columns=cls.FIELD_2_TRANSACTION)
+        remapped = frame.rename(columns=cls.field_2_transaction())
         expected = [n for n in TransactionColumns.names()]
         missing = [col for col in expected
                     if col not in remapped.columns]

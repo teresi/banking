@@ -15,10 +15,7 @@ import pandas as pd
 
 from banking.parser import Parser
 from banking.utils import TransactionColumns
-
-# TODO parse dates
-# TODO parse debit/credit
-# TODO map categories to master categories (need regex for bbt)
+from banking.utils import TransactionCategories as Cats
 
 
 def _convert_price(price):
@@ -46,6 +43,11 @@ def _convert_date(date_field):
 def _convert_category(category):
     """Parse category from bank to user category e.g. Exxon --> gas."""
 
+    # FUTURE implement real solution, this is just proof of concept
+    cat = category.lower()
+
+    if "salary" in cat:
+        return Cats.SALARY
     return category  # TODO add mapping
 
 
@@ -62,26 +64,53 @@ def _convert_check(check_number):
         return None
 
 
+def _convert_posted_balance(balance):
+    """Parse the daily posted balance, a sparse account balance."""
+
+    if not balance:
+        return None
+
+    if balance.startswith("$"):
+        number = balance[1:]  # remove ($...)
+        return Decimal(number)
+    else:
+        msg = "can't parse posted balance, doesn't start with '$': {}".format(balance)
+        logging.getLogger().error(msg)
+        return None
+
+
 class Bbt(Parser):
     """Reads BBT transactions into a common format."""
 
     INSTITUTION = "bbt"  # MAGIC our convention
-    FIELD_2_TRANSACTION = {
+    _FIELD_2_TRANSACTION = {
         "Date": TransactionColumns.DATE.name,
         "Check Number": TransactionColumns.CHECK_NO.name,
         "Description": TransactionColumns.DESCRIPTION.name,
         "Amount": TransactionColumns.AMOUNT.name,
+        "Daily Posted Balance": TransactionColumns.POSTED_BALANCE.name,
     }
-    FIELD_NAMES = ["Date", "Transaction Type", "Check Number", "Description", "Amount"]
     DELIMITER = ","
     COL_2_CONVERTER = {
         "Date": _convert_date,
-        "category": _convert_category,
-        "Amount": _convert_price,
         "Check Number": _convert_check,
+        "Amount": _convert_price,
+        "Daily Posted Balance": _convert_posted_balance
     }
     ACCOUNT = 9999          # MAGIC last four digits of bbt account number
     FILE_PREFIX = "Acct_"   # MAGIC bbt convention for their files
+
+    @classmethod
+    def field_2_transaction(cls):
+        """Input column name to our standard column names."""
+
+        return cls._FIELD_2_TRANSACTION
+
+    @classmethod
+    def field_names(cls):
+        """Columns expected in header, unordered."""
+
+        return [key for key in cls._FIELD_2_TRANSACTION.keys()]
 
     def parse(self):
         """Return transactions as a panda frame with our column formatting.

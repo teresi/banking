@@ -62,6 +62,25 @@ class TransactionColumns(Enum):
         return (col.name for col in cls)
 
 
+@unique
+class TransactionCategories(Enum):
+
+    UNKNOWN = auto()
+    SALARY = auto()
+    HOUSING = auto()
+    RETIREMENT = auto()
+    INVESTMENTS = auto()
+    MEDICAL = auto()
+    VEHICLES = auto()
+    COMMUNICATIONS = auto()
+    HOUSEHOLD = auto()
+    GROCERIES = auto()
+    RESTARAUNTS = auto()
+    TAXES = auto()
+    PERSONAL = auto()
+
+
+
 @contextmanager
 def temp_data(prefix=None, suffix=".csv", data=None):
     """Temporary file with data.

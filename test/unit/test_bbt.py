@@ -19,6 +19,7 @@ import pandas
 from banking.parser import Parser
 from banking.bbt import Bbt
 from banking.bbt import _convert_price, _convert_date, _convert_check
+from banking.bbt import _convert_posted_balance
 from banking.utils import file_dne_exc, TransactionColumns, temp_data
 
 LOGGER = logging.getLogger(__name__)
@@ -35,11 +36,20 @@ FAKE_TRANSACTIONS="""Date,Transaction Type,Check Number,Description,Amount,Daily
 
 @pytest.fixture
 def bbt_file():
+    """Filepath to fake data."""
 
     prefix = Bbt.FILE_PREFIX + str(Bbt.ACCOUNT)
     data = FAKE_TRANSACTIONS
     with temp_data(prefix=prefix, suffix=".csv", data=data) as path:
-            yield path
+        yield path
+
+
+@pytest.fixture
+def bbt_frame(bbt_file):
+    """Parsed data frame from fake data."""
+
+    frame = Bbt(bbt_file).parse()
+    yield frame
 
 
 def expected_filename():
@@ -65,6 +75,12 @@ def test_convert_price_neg():
     """Does a valid debt get converted?"""
 
     assert Decimal('-2.34') == _convert_price("($2.34)")
+
+
+def test_convert_posted():
+    """Does a valid posted balance get converted?"""
+
+    assert Decimal("42.42") == _convert_posted_balance("$42.42")
 
 
 def test_reject_credit():
@@ -101,8 +117,8 @@ def test_transaction_fields():
     """Does the mapping have feasible entries?"""
 
     our_names = [c.name for c in TransactionColumns]
-    for bbt, ours in Bbt.FIELD_2_TRANSACTION.items():
-        assert bbt in Bbt.FIELD_NAMES
+    for bbt, ours in Bbt.field_2_transaction().items():
+        assert bbt in Bbt.field_names()
         assert ours in our_names
 
 
@@ -146,8 +162,19 @@ def test_parse(bbt_file):
     assert Bbt.is_file_parsable(bbt_file)
     frame = Bbt(bbt_file).parse()
     rows, cols = frame.shape
-    logging.info("shape     {}".format(frame.shape))
     # MAGIC minus 1 for the header
     assert rows == FAKE_TRANSACTIONS.count('\n') - 1
+
+
+def test_posted_balance(bbt_frame):
+    """Does the posted balance get read correctly?"""
+
+    cat = TransactionColumns.POSTED_BALANCE.name
+    logging.info(bbt_frame)
+    posted = [val for val in bbt_frame[cat] if val is not None]
+    logging.info(posted)
+    parsed = posted[-1]
+    # MAGIC hand calc from above fake data
+    assert parsed == Decimal('1016')
 
 

@@ -60,16 +60,26 @@ class ParserImpl(Parser):
 
     INSTITUTION = "Totally Legit Bank"
     DELIMETER = ","
-    FIELD_2_TRANSACTION = {
+    _FIELD_2_TRANSACTION = {
         "date": TransactionColumns.DATE.name,
         "note": TransactionColumns.DESCRIPTION.name,
         "amount": TransactionColumns.AMOUNT.name,
     }
-    FIELD_NAMES = ["date", "amount", "note"]
+    _FIELD_NAMES = ["date", "amount", "note"]
 
     ACCOUNT_NUMBER = 8888  # MAGIC fake acount
     FILE_PREFIX_PART = "Acct_"  # MAGIC fake file formatting
     FILE_PREFIX = FILE_PREFIX_PART + str(ACCOUNT_NUMBER)
+
+    @classmethod
+    def field_names(cls):
+
+        return [key for key in cls._FIELD_2_TRANSACTION.keys()]
+
+    @classmethod
+    def field_2_transaction(cls):
+
+        return cls._FIELD_2_TRANSACTION
 
     @classmethod
     def is_date_valid(cls, start, stop):
@@ -163,7 +173,7 @@ def test_init_raise_file_no_exist():
 def test_check_header_read_file():
     """Is a good header accepted?"""
 
-    data = ",".join(ParserImpl.FIELD_NAMES)
+    data = ",".join(ParserImpl.field_names())
     with temp_data(prefix=ParserImpl.FILE_PREFIX, suffix=".csv", data=data) as file:
         assert ParserImpl.check_header(file, header=data, row=0) == True
         assert ParserImpl.is_file_parsable(file) == True
@@ -188,7 +198,7 @@ def test_is_parsable_bad_filename():
 def test_is_parsable_good_header():
     """Is a file with a good filename and header accepted?"""
 
-    data = ",".join(ParserImpl.FIELD_NAMES)
+    data = ",".join(ParserImpl.field_names())
     with temp_data(prefix=ParserImpl.FILE_PREFIX, suffix=".csv", data=data) as file:
         assert ParserImpl.is_file_parsable(file) == True
 
@@ -229,7 +239,7 @@ def test_parse_text_frame_dates(parser):
 def test_remap_cols():
     """Are the column names remapped?"""
 
-    input_keys = [k for k in ParserImpl.FIELD_2_TRANSACTION.keys()]
+    input_keys = [k for k in ParserImpl.field_2_transaction().keys()]
     input_data = {k: [i] for i,k in enumerate(input_keys)}
     input_frame = pandas.DataFrame.from_dict(input_data)
     mapped_frame = ParserImpl.remap_cols(input_frame)
