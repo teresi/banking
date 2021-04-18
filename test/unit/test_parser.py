@@ -67,17 +67,19 @@ class ParserImpl(Parser):
     }
     _FIELD_NAMES = ["date", "amount", "note"]
 
-    ACCOUNT_NUMBER = 8888  # MAGIC fake acount
+    ACCOUNT = 8888  # MAGIC fake acount
     FILE_PREFIX_PART = "Acct_"  # MAGIC fake file formatting
-    FILE_PREFIX = FILE_PREFIX_PART + str(ACCOUNT_NUMBER)
+    FILE_PREFIX = FILE_PREFIX_PART + str(ACCOUNT)
 
     @classmethod
     def field_names(cls):
+        """The header values."""
 
         return [key for key in cls._FIELD_2_TRANSACTION.keys()]
 
     @classmethod
     def field_2_transaction(cls):
+        """Header value to standardized names."""
 
         return cls._FIELD_2_TRANSACTION
 
@@ -151,9 +153,17 @@ def temp_valid_input_file():
 
 @pytest.fixture
 def parser(temp_valid_input_file):
+    """Yield a parser from the fake input file."""
 
     parser = ParserImpl(temp_valid_input_file)
     yield parser
+
+
+@pytest.fixture
+def frame(parser):
+    """Yield a data frame after parsing the fake input file."""
+
+    yield parser.parse()
 
 
 def test_subclass_is_registered(temp_file):
@@ -275,6 +285,20 @@ def test_parse_reject():
         with temp_data(prefix=None, suffix=".csv", data=data) as file:
             parser = ParserImpl(file)
             parser.parse()
+
+
+def test_fill_bank(parser):
+    """Does the bank name get populated?"""
+
+    frame = parser.parse()
+    assert all(frame[TransactionColumns.BANK.name] == parser.INSTITUTION)
+
+
+def test_fill_account(parser):
+    """Does the bank account get populated?"""
+
+    frame = parser.parse()
+    assert all(frame[TransactionColumns.ACCOUNT.name] == parser.ACCOUNT)
 
 
 if __name__ == "__main__":

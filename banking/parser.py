@@ -56,19 +56,25 @@ class Parser:
 
         return str()
 
+    @property
+    @abstractmethod
+    def ACCOUNT(cls):
+        """The account number of the banking services."""
+
+        return int(-1)
+
     @classmethod
     @abstractmethod
-    def field_2_transaction(self):
+    def field_2_transaction(cls):
         """Dict of subclass column names to TransactionColumns names."""
 
         return {}
 
     @classmethod
-    @abstractmethod
-    def field_names(self):
+    def field_names(cls):
         """Column headers of the input file, unordered."""
 
-        return []
+        return [key for key in cls.field_2_transaction().keys()]
 
     @property
     @abstractmethod
@@ -196,6 +202,8 @@ class Parser:
             converters=header_to_converter,
             dtype={TransactionColumns.CHECK_NO.name: np.int16}
         )
+        frame[TransactionColumns.BANK.name] = self.INSTITUTION
+        frame[TransactionColumns.ACCOUNT.name] = self.ACCOUNT
         return frame
 
     @classmethod

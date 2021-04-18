@@ -126,12 +126,6 @@ class Bbt(Parser):
 
         return cls._FIELD_2_TRANSACTION
 
-    @classmethod
-    def field_names(cls):
-        """Columns expected in header, unordered."""
-
-        return [key for key in cls._FIELD_2_TRANSACTION.keys()]
-
     def parse(self):
         """Return transactions as a panda frame with our column formatting.
 
@@ -141,8 +135,6 @@ class Bbt(Parser):
 
         frame = super().parse()
         frame = self._fill_categories(frame)
-        frame[TransactionColumns.BANK.name] = self.INSTITUTION
-        frame[TransactionColumns.ACCOUNT.name] = self.ACCOUNT
         frame = frame.astype({
             TransactionColumns.CHECK_NO.name: np.int16
         })
