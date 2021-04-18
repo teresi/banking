@@ -64,6 +64,7 @@ class TransactionColumns(Enum):
 
 @unique
 class TransactionCategories(Enum):
+    """User classifications for purchases."""
 
     UNKNOWN = auto()
     SALARY = auto()

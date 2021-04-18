@@ -72,14 +72,16 @@ def _convert_category(description):
 def _convert_check(check_number):
     """Parse number for the check, if used."""
 
-    # NOTE have observed NaN / floats in some cases?
-    if not check_number:
-        return None
-
+    if check_number == '':
+        return -1
+    if check_number is None:
+        return -1
     try:
-        return np.uint16(check_number)
-    except ValueError:  # e.g. empty string
-        return None
+        return np.int16(check_number)
+    except ValueError as verr:  # e.g. empty string
+        logging.error("could not parse check number '%s':  %s"
+                      .format(check_number, verr))
+        return -1
 
 
 def _convert_posted_balance(balance):
@@ -138,11 +140,12 @@ class Bbt(Parser):
         """
 
         frame = super().parse()
-
-        # FUTURE is there a vectorized form of this in pandas?
-        desc_name = TransactionColumns.DESCRIPTION.name
-        frame[TransactionColumns.CATEGORY.name] = frame[desc_name].apply(_convert_category)
-
+        frame = self._fill_categories(frame)
+        frame[TransactionColumns.BANK.name] = self.INSTITUTION
+        frame[TransactionColumns.ACCOUNT.name] = self.ACCOUNT
+        frame = frame.astype({
+            TransactionColumns.CHECK_NO.name: np.int16
+        })
         return frame
 
     @classmethod
@@ -159,3 +162,11 @@ class Bbt(Parser):
         # MAGIC bbt convention to have 'Acct_XXXX' as prefix
         prefix = "Acct_" + str(cls.ACCOUNT)
         return file_name.startswith(prefix)
+
+    def _fill_categories(self, frame):
+        """Fill category entries given the description values."""
+
+        # FUTURE is there a vectorized form of this in pandas?
+        desc_name = TransactionColumns.DESCRIPTION.name
+        frame[TransactionColumns.CATEGORY.name] = frame[desc_name].apply(_convert_category)
+        return frame

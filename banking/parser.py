@@ -13,6 +13,7 @@ import errno
 
 from abc import abstractmethod, abstractproperty
 import pandas as pd
+import numpy as np
 
 from banking.utils import file_dne_exc, TransactionColumns
 
@@ -193,6 +194,7 @@ class Parser:
             delimiter=self.DELIMITER,
             usecols=self.field_names(),
             converters=header_to_converter,
+            dtype={TransactionColumns.CHECK_NO.name: np.int16}
         )
         return frame
 

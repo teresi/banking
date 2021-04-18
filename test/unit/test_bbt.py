@@ -46,10 +46,16 @@ def bbt_file():
 
 
 @pytest.fixture
-def bbt_frame(bbt_file):
+def bbt_instance(bbt_file):
+
+    yield Bbt(bbt_file)
+
+
+@pytest.fixture
+def bbt_frame(bbt_instance):
     """Parsed data frame from fake data."""
 
-    frame = Bbt(bbt_file).parse()
+    frame = bbt_instance.parse()
     yield frame
 
 
@@ -111,7 +117,7 @@ def test_convert_check():
 def test_reject_check():
     """Does a missing check get converted?"""
 
-    assert _convert_check('') is None
+    assert _convert_check('') is -1
 
 
 @pytest.mark.skip(reason="work in progress")
@@ -186,6 +192,14 @@ def test_posted_balance(bbt_frame):
     assert parsed == Decimal('1016')
 
 
+def test_check_number(bbt_frame):
+    """Does the check number get read correctly?"""
+
+    # MAGIC hand calc from above fake data
+    expected = [-1, -1, -1, -1, 301]
+    assert all(expected == bbt_frame[TransactionColumns.CHECK_NO.name])
+    
+
 def test_convert_category_sanity_check(bbt_frame):
     """Do the categories get mapped for our fake data?
 
@@ -202,3 +216,17 @@ def test_convert_category_sanity_check(bbt_frame):
         input = row[cat]
         parsed.append(input.lower())
     assert expected == parsed
+
+
+def test_fill_bank(bbt_instance):
+    """Does the bank name get populated?"""
+
+    frame = bbt_instance.parse()
+    assert all(frame[TransactionColumns.BANK.name] == bbt_instance.INSTITUTION)
+
+
+def test_fill_account(bbt_instance):
+    """Does the bank account get populated?"""
+
+    frame = bbt_instance.parse()
+    assert all(frame[TransactionColumns.ACCOUNT.name] == bbt_instance.ACCOUNT)
