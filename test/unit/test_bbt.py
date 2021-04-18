@@ -11,6 +11,7 @@ from datetime import date
 import os
 from contextlib import contextmanager
 from decimal import Decimal
+import random, string
 
 import pytest
 import pandas
@@ -18,7 +19,7 @@ import pandas
 from banking.parser import Parser
 from banking.bbt import Bbt
 from banking.bbt import _convert_price, _convert_date, _convert_check
-from banking.utils import file_dne_exc, TransactionColumns
+from banking.utils import file_dne_exc, TransactionColumns, temp_data
 
 LOGGER = logging.getLogger(__name__)
 coloredlogs.install(level=logging.DEBUG)
@@ -30,6 +31,28 @@ FAKE_TRANSACTIONS="""Date,Transaction Type,Check Number,Description,Amount,Daily
 02/03/2020,POS,,ESTABLISHMENT DEBIT PURCHASE,($42),$1016
 02/05/2020,POS,301,Check Payment,($42),
 """
+
+
+@pytest.fixture
+def bbt_file():
+
+    prefix = Bbt.FILE_PREFIX + str(Bbt.ACCOUNT)
+    data = FAKE_TRANSACTIONS
+    with temp_data(prefix=prefix, suffix=".csv", data=data) as path:
+            yield path
+
+
+def expected_filename():
+    """A valid input filename for the parser."""
+
+    # MAGIC our convention, starts with 
+    return Bbt.FILE_PREFIX + str(Bbt.ACCOUNT) + '_' + rand_string(8)
+
+
+def rand_string(count):
+    """A random string of lower case letters."""
+
+    return ''.join([random.choice(string.ascii_lowercase) for i in range(count)])
 
 
 def test_convert_price_pos():
@@ -86,18 +109,45 @@ def test_transaction_fields():
 def test_check_filename():
     """Does a valid filename pass?"""
 
-    assert Bbt._check_filename("Acct_7389_XXXX_XXXX.CSV")
+    assert Bbt._check_filename(expected_filename())
 
 
 def test_reject_filename():
     """Does an invalid filename get rejected?"""
 
-    assert not Bbt._check_filename("Acct_9999.csv")
+    # MAGIC offset account no.
+    filename = str(12345) + expected_filename()
+    assert not Bbt._check_filename(filename)
 
 
-def test_parse():
+def test_check_filename():
+    """Does a valid filename pass?"""
+
+    assert Bbt._check_filename(expected_filename())
+
+
+def test_check_filename_path():
+    """Does a valid file path pass?"""
+
+    path = os.path.join("/", "arbitrary", "dir", expected_filename())
+    assert Bbt._check_filename(path)
+
+
+def test_check_filename_reject():
+    """Does an invalid filename get rejected?"""
+
+    bad_filename = rand_string(4) + expected_filename()
+    assert not Bbt._check_filename(bad_filename)
+
+
+def test_parse(bbt_file):
     """Does a normal file get parsed?"""
 
-
+    assert Bbt.is_file_parsable(bbt_file)
+    frame = Bbt(bbt_file).parse()
+    rows, cols = frame.shape
+    logging.info("shape     {}".format(frame.shape))
+    # MAGIC minus 1 for the header
+    assert rows == FAKE_TRANSACTIONS.count('\n') - 1
 
 

@@ -65,7 +65,7 @@ def _convert_check(check_number):
 class Bbt(Parser):
     """Reads BBT transactions into a common format."""
 
-    INSTITUTION = "bbt"
+    INSTITUTION = "bbt"  # MAGIC our convention
     FIELD_2_TRANSACTION = {
         "Date": TransactionColumns.DATE.name,
         "Check Number": TransactionColumns.CHECK_NO.name,
@@ -80,7 +80,8 @@ class Bbt(Parser):
         "Amount": _convert_price,
         "Check Number": _convert_check,
     }
-    ACCOUNT = 7389
+    ACCOUNT = 9999          # MAGIC last four digits of bbt account number
+    FILE_PREFIX = "Acct_"   # MAGIC bbt convention for their files
 
     def parse(self):
         """Return transactions as a panda frame with our column formatting.
@@ -93,9 +94,16 @@ class Bbt(Parser):
 
     @classmethod
     def _check_filename(cls, filepath):
-        """False if the filename is unexpected for this parser."""
+        """False if the filename is unexpected for this parser.
+
+        Args:
+            str(filepath): path or filename for the input data file (e.g. csv)
+        Returns:
+            bool: true if the filename matches one this parser should use
+        """
 
         file_name = os.path.basename(filepath)
+        # MAGIC bbt convention to have 'Acct_XXXX' as prefix
         prefix = "Acct_" + str(cls.ACCOUNT)
-        return filepath.startswith(prefix)
+        return file_name.startswith(prefix)
 
