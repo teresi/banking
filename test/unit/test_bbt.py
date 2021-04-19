@@ -67,12 +67,6 @@ def test_convert_price_neg():
     assert Decimal('-2.34') == _convert_price("($2.34)")
 
 
-def test_convert_posted():
-    """Does a valid posted balance get converted?"""
-
-    assert Decimal("42.42") == _convert_posted_balance("$42.42")
-
-
 def test_reject_credit():
     """Does an invalid credit get rejected?"""
 
@@ -83,6 +77,12 @@ def test_reject_debit():
     """Does an invalid debit get rejected?"""
 
     assert None == _convert_price("$9000")
+
+
+def test_convert_posted():
+    """Does a valid posted balance get converted?"""
+
+    assert Decimal("42.42") == _convert_posted_balance("$42.42")
 
 
 def test_convert_date():

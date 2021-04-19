@@ -9,6 +9,7 @@ from decimal import Decimal
 import csv
 import logging
 import os
+import re
 
 import numpy as np
 import pandas as pd
@@ -18,15 +19,20 @@ from banking.utils import TransactionColumns
 from banking.utils import TransactionCategories as Cats
 
 
+_pos_price_pattern = re.compile(r"^\(\$")
+_neg_price_pattern = re.compile(r"^\$\+")
+
+
 def _convert_price(price):
     """Dollar to Decimal:$(X) for negatives, $+X for positives."""
 
-    if price.startswith("($"):  # negative
+    # TODO replace substrint call w/ word boundaries?
+    if _pos_price_pattern.search(price) is not None:
         number = price[2:-1]  # remove ($...)
         return -1 * Decimal(number)
-    elif price.startswith("$+"):  # positive
+    elif _neg_price_pattern.search(price) is not None:
         number = price[2:]  # remove $+
-        return +1 * Decimal(number)
+        return Decimal(number)
     else:
         msg = "can't parse price, doesn't start with '($' or '$+': {}".format(price)
         logging.getLogger().error(msg)
@@ -36,8 +42,7 @@ def _convert_price(price):
 def _convert_date(date_field):
     """Parse time into date, form of 01/31/1970"""
 
-    date = datetime.datetime.strptime(str(date_field), "%m/%d/%Y").date()
-    return date
+    return datetime.datetime.strptime(str(date_field), "%m/%d/%Y").date()
 
 
 def _convert_category(description):

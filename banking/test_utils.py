@@ -21,6 +21,15 @@ FAKE_BBT_TRANSACTIONS="""Date,Transaction Type,Check Number,Description,Amount,D
 """
 
 
+FAKE_USAA_TRANSACTIONS="""forecasted,,01/01/2020,,FUNDS TRANSFER,Uncategorized,-3.50
+posted,,01/02/2020,,LEGIT EMPLOYER SALARY,Paychecks/Salary,--1000
+posted,,01/03/2020,,LEGIT WASTE SERVICE,Utilities,-20.25
+posted,,01/04/2020,,LEGIT FOOD SERVICE,Groceries,-35.56
+posted,,01/10/2020,,INTEREST PAID,Interest,--0.05
+posted,,01/11/2020,,LEGIT FOOD SERVICE,Groceries,-122.25
+"""
+
+
 @pytest.fixture
 def temp_dir():
     """Temporary directory as a pytest fixture."""

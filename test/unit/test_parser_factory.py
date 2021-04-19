@@ -24,17 +24,27 @@ def factory():
 
     return ParserFactory()
 
+
 def test_init_no_throw(factory):
     """Does it initialize?"""
 
     pass
 
+
 def test_from_file_onefile(factory, bbt_file):
-    """Does it select the parser for one file?"""
+    """Does it select the parser for a file, from filepath?"""
+
+    parser = factory.from_file(bbt_file)
+    assert isinstance(parser, Bbt)
+
+
+def test_from_directory_onefile(factory, bbt_file):
+    """Does it select the parser for a file, from directory?"""
 
     parent_dir = os.path.dirname(bbt_file)
-    parser = factory.from_file(bbt_file)
-    assert isinstance(parser, Parser)
+    parsers = [p for p in factory.from_directory(parent_dir)]
+    assert len(parsers) == 1
+    assert isinstance(parsers[0], Bbt)
 
 
 

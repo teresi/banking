@@ -6,52 +6,56 @@ USAA transactions.
 
 import datetime
 import csv
+import re
+import logging
+from decimal import Decimal
+from datetime import date
 
 import numpy as np
 import pandas as pd
 from decimal import Decimal
 
 from banking.parser import Parser
-from banking.transaction import TransactionColumns
-
-# TODO parse dates
-# TODO parse debit/credit
-# TODO map categories to master categories (need regex for bbt)
+from banking.utils import TransactionColumns, TransactionCategories
 
 
-class _UsaaConvert1(object):
-    """Sundry functions to convert entries of the USAA transaction file."""
+_pos_price_pattern = re.compile("^--")
+_neg_price_pattern = re.compile("^-")
 
-    @staticmethod
-    def convert_posted(posted_field):
+
+def _convert_price(price):
+    """Dollar to Decimal."""
+
+    # TODO replace substrint call w/ word boundaries?
+    # TODO catch Decimal exceptions / reject bad formats
+    if _pos_price_pattern.search(price) is not None:
+        return Decimal(price[2:])
+    elif _neg_price_pattern.search(price) is not None:
+        print(price[1:])
+        return -1 * Decimal(price[1:])
+    else:
+        logging.error("cannot convert price:  %s" % price)
+        return None
+
+
+def _convert_date(date_field):
+    """String to date."""
+
+    return datetime.datetime.strptime(str(date_field), "%m/%d/%Y").date()
+
+
+def _convert_posted(posted_field):
         return posted_field == "posted"
 
-    @staticmethod
-    def convert_date(date_field):
-        # NOTE the hour field is populated when pandas gets this data
-        # what effect will that have? (maybe check the zone?)
-        date_time = datetime.datetime.strptime(str(date_field), "%M/%d/%Y")
-        return np.datetime64(date_time)
 
-    @staticmethod
-    def convert_category(category):
-        return category  # TODO add mapping
+def _convert_category(category_field):
 
-    @staticmethod
-    def convert_price(price):
-
-        if price.startswith("--"):
-            return Decimal(price[2:])
-        elif price.startswith("-"):
-            return -1 * Decimal(price[1:])
-        else:
-            return Decimal(price)  # used when price is forcasted
+    return category_field  # TODO
 
 
-class UsaaParser1(Parser):
+class Usaa(Parser):
     """Reads USAA transactions into a common format."""
 
-    VERSION = 1
     INSTITUTION = "usaa"
     DELIMITER = ","
 
@@ -59,10 +63,10 @@ class UsaaParser1(Parser):
     FIELD_COLS = [0, 2, 4, 5, 6]
     FIELD_NAMES = ["posted", "date", "description", "category", "amount"]
     FIELD_CONVERTERS = {
-        "posted": _UsaaConvert1.convert_posted,
-        "date": _UsaaConvert1.convert_date,
-        "category": _UsaaConvert1.convert_category,
-        "amount": _UsaaConvert1.convert_price,
+        "posted": _convert_posted,
+        "date": _convert_date,
+        "category": _convert_category,
+        "amount": _convert_price,
     }
     # MAGIC NUMBER map to TransacationHistory columns
     FIELD_2_TRANSACTION = {

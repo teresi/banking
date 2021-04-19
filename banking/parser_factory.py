@@ -6,6 +6,7 @@ Select which Parser to use given input files (e.g. csv).
 
 import logging
 from collections import defaultdict
+import os
 
 import pytest
 
