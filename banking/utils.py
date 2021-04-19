@@ -9,7 +9,6 @@ Helper functions and data.
 import datetime
 import errno
 from enum import Enum, unique, auto
-from contextlib import contextmanager
 import tempfile
 import logging
 import coloredlogs
@@ -32,6 +31,7 @@ def setup_logger(level):
     verb_levels = [logging.WARNING, logging.INFO, logging.DEBUG]
     verb = verb_levels[min(len(verb_levels) - 1, level)]
     coloredlogs.install(level=verb)
+
 
 def last_day_of_month(day):
     """The last day of the month from the date provided.
@@ -73,33 +73,10 @@ class TransactionCategories(Enum):
     INVESTMENTS = auto()
     MEDICAL = auto()
     VEHICLES = auto()
-    COMMUNICATIONS = auto()
+    UTILITITES = auto()
     HOUSEHOLD = auto()
     GROCERIES = auto()
     RESTARAUNTS = auto()
     TAXES = auto()
+    PETS = auto()
     PERSONAL = auto()
-
-
-
-@contextmanager
-def temp_data(prefix=None, suffix=".csv", data=None):
-    """Temporary file with data.
-
-    Args:
-        prefix(str): filename prefix
-        suffix(str): filename extension
-        data(str): write data to the file
-
-    Yields:
-        (filehandle) the file (
-    """
-
-    with tempfile.NamedTemporaryFile(prefix=prefix, suffix=suffix, mode='w+') as file:
-        if data is not None:
-            file.write(data)
-        file.seek(0)
-        yield file.name  # opening again by caller my not work in Windows?
-
-
-

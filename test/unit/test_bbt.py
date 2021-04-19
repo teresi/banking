@@ -20,29 +20,12 @@ from banking.parser import Parser
 from banking.bbt import Bbt
 from banking.bbt import _convert_price, _convert_date, _convert_check
 from banking.bbt import _convert_posted_balance
-from banking.utils import file_dne_exc, temp_data
+from banking.utils import file_dne_exc
 from banking.utils import TransactionColumns, TransactionCategories
+from banking.test_utils import bbt_file, FAKE_BBT_TRANSACTIONS
 
 LOGGER = logging.getLogger(__name__)
 coloredlogs.install(level=logging.DEBUG)
-
-FAKE_TRANSACTIONS="""Date,Transaction Type,Check Number,Description,Amount,Daily Posted Balance
-01/01/2020,Credit,,LEGIT EMPLOYER SALARY,$+1000,$0.00
-01/02/2020,Debit,,KROGER STORE DEBIT CARD,($42),$958
-02/01/2020,Deposit,,TRANSFER FROM,$+100,
-02/03/2020,POS,,WALGREENS DEBIT PURCHASE,($42),$1016
-02/05/2020,POS,301,Check Payment,($42),
-"""
-
-
-@pytest.fixture
-def bbt_file():
-    """Filepath to fake data."""
-
-    prefix = Bbt.FILE_PREFIX + str(Bbt.ACCOUNT)
-    data = FAKE_TRANSACTIONS
-    with temp_data(prefix=prefix, suffix=".csv", data=data) as path:
-        yield path
 
 
 @pytest.fixture
@@ -177,16 +160,14 @@ def test_parse(bbt_file):
     frame = Bbt(bbt_file).parse()
     rows, cols = frame.shape
     # MAGIC minus 1 for the header
-    assert rows == FAKE_TRANSACTIONS.count('\n') - 1
+    assert rows == FAKE_BBT_TRANSACTIONS.count('\n') - 1
 
 
 def test_posted_balance(bbt_frame):
     """Does the posted balance get read correctly?"""
 
     cat = TransactionColumns.POSTED_BALANCE.name
-    logging.info(bbt_frame)
     posted = [val for val in bbt_frame[cat] if val is not None]
-    logging.info(posted)
     parsed = posted[-1]
     # MAGIC hand calc from above fake data
     assert parsed == Decimal('1016')
@@ -211,7 +192,6 @@ def test_convert_category_sanity_check(bbt_frame):
     cat = TransactionColumns.CATEGORY.name
     unkown = str(TransactionCategories.UNKNOWN.name)
     parsed = []
-    print(bbt_frame['CATEGORY'])
     for i, row in bbt_frame.iterrows():
         input = row[cat]
         parsed.append(input.lower())

@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
 """
-Test ParserBase
+Test Parser.
+
+Define a minimum implementation of Parser and test.
 """
 
 import logging
@@ -16,7 +18,7 @@ import pandas
 
 from banking.parser import Parser
 from banking.utils import file_dne_exc, TransactionColumns
-from banking.utils import temp_data
+from banking.test_utils import temp_file, temp_data
 
 LOGGER = logging.getLogger(__name__)
 coloredlogs.install(level=logging.DEBUG)
@@ -38,7 +40,6 @@ def _convert_amount(price):
         return -1 * Decimal(number)
     elif price.startswith("$+"):  # positive
         number = price[2:]  # remove $+
-        print("{} --> {}".format(number, Decimal(number)))
         return +1 * Decimal(number)
     else:
         msg = "can't parse price, doesn't start with '($' or '$+': {}".format(price)
@@ -126,21 +127,6 @@ class ParserImpl(Parser):
 
 
 @pytest.fixture
-def temp_dir():
-    """Temporary directory."""
-
-    with tempfile.TemporaryDirectory() as temp_dir:
-        yield temp_dir
-
-
-@pytest.fixture
-def temp_file():
-
-    with tempfile.NamedTemporaryFile() as file:
-        return file.name
-
-
-@pytest.fixture
 def temp_valid_input_file():
 
     with temp_data(
@@ -164,6 +150,14 @@ def frame(parser):
     """Yield a data frame after parsing the fake input file."""
 
     yield parser.parse()
+
+
+def test_subclass_gen():
+    """Can we iterate over the sub classes?"""
+
+    classes = [klass for name, klass in ParserImpl.gen_implementations()]
+    assert len(classes) >= 1  # MAGIC we've at least provided ParserImpl
+    assert ParserImpl in classes
 
 
 def test_subclass_is_registered(temp_file):
@@ -272,7 +266,6 @@ def test_parse_sum(parser):
     """Does the `parse` function return the right amount?"""
 
     frame = parser.parse()
-    print(frame['AMOUNT'])
     total = frame[TransactionColumns.AMOUNT.name].sum()
     assert total == 1000-42
 

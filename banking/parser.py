@@ -34,6 +34,16 @@ class Parser:
         super().__init_subclass__(**kwargs)
         cls._SUBCLASSES[cls.__name__] = cls
 
+    @classmethod
+    def gen_implementations(cls):
+        """Generator of name, class for each subclass.
+
+        Returns:
+            generator(str, class): the items
+        """
+
+        return (cls._SUBCLASSES.items())
+
     def __init__(self, filepath, logger=None):
         """Initialize.
 
@@ -124,7 +134,7 @@ class Parser:
 
         Args:
             filepath(str): path to input data file
-            header(str): header contents, read file if None
+            header(str): header line, read file if None
             row(int): row index of the header line (zero based)
             delim(str): char delimiter
         Returns:
@@ -139,18 +149,19 @@ class Parser:
         else:
             line = str(header).split(delim)
 
+        # BUG multiline header not handled!
         matched = all([h in line for h in cls.field_names()])
         return matched
 
     @classmethod
-    def is_file_parsable(cls, filepath, header=None):
+    def is_file_parsable(cls, filepath, beginning=None):
         """True if this parser can decode the input file.
 
         Used to select a parser for an input file based on the filepath and header.
 
         Args:
             filepath(str): path to input data
-            header(str):  first few lines of the raw data, skip reading file if not None
+            beginning(str):  first few lines of the raw data, skip reading file if not None
         Raises:
             FileNotFoundError: file does not exist
             IOError: file not readable or etc.
@@ -162,7 +173,11 @@ class Parser:
         if not cls._check_filename(filepath):
             return False
 
-        return cls.check_header(filepath, header)
+        # BUG splitting multiple lines not tested & no input arg for header row!
+        if beginning is not None:
+            beginning = beginning.split('\n')[0]
+
+        return cls.check_header(filepath, beginning)
 
     @staticmethod
     def yield_header(filepath, rows=4, max_bytes_per_row=9000):
