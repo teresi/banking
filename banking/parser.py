@@ -109,6 +109,8 @@ class Parser:
 
         Returns:
             (pandas.DataFrame): frame with TransactionColumns column names
+        Raises:
+            ValueError: input data is malformed.  NOTE should this be a RuntimeError?
         """
 
         if not self.is_file_parsable(self.filepath):
@@ -127,33 +129,7 @@ class Parser:
         return False
 
     @classmethod
-    def check_header(cls, filepath, header=None, row=0, delim=','):
-        """True if all the expected field names are in the header.
-
-        Used to select a parser for an input file based on the header contents.
-
-        Args:
-            filepath(str): path to input data file
-            header(str): header line, read file if None
-            row(int): row index of the header line (zero based)
-            delim(str): char delimiter
-        Returns:
-            (bool): true if header has all the expected fields
-        """
-
-        if row < 0:
-            raise ValueError("row index of %i is < 0" % row)
-
-        if header is None:
-            line = [l for l in cls.yield_header(filepath, rows=row)][row]
-        else:
-            line = str(header).split(delim)
-
-        # BUG multiline header not handled!
-        matched = all([h in line for h in cls.field_names()])
-        return matched
-
-    @classmethod
+    @abstractmethod
     def is_file_parsable(cls, filepath, beginning=None):
         """True if this parser can decode the input file.
 
@@ -165,19 +141,14 @@ class Parser:
         Raises:
             FileNotFoundError: file does not exist
             IOError: file not readable or etc.
+        Returns:
+            (bool): true if it can be parsed by this class
         """
 
         if not os.path.isfile(filepath):
             raise file_dne_exc(filepath)
 
-        if not cls._check_filename(filepath):
-            return False
-
-        # BUG splitting multiple lines not tested & no input arg for header row!
-        if beginning is not None:
-            beginning = beginning.split('\n')[0]
-
-        return cls.check_header(filepath, beginning)
+        return True
 
     @staticmethod
     def yield_header(filepath, rows=4, max_bytes_per_row=9000):

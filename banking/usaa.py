@@ -10,6 +10,7 @@ import re
 import logging
 from decimal import Decimal
 from datetime import date
+import os
 
 import numpy as np
 import pandas as pd
@@ -19,8 +20,8 @@ from banking.parser import Parser
 from banking.utils import TransactionColumns, TransactionCategories
 
 
-_pos_price_pattern = re.compile("^--")
-_neg_price_pattern = re.compile("^-")
+_pos_price_pattern = re.compile(r"^\d+")
+_neg_price_pattern = re.compile(r"^-\d+")
 
 
 def _convert_price(price):
@@ -29,7 +30,7 @@ def _convert_price(price):
     # TODO replace substrint call w/ word boundaries?
     # TODO catch Decimal exceptions / reject bad formats
     if _pos_price_pattern.search(price) is not None:
-        return Decimal(price[2:])
+        return Decimal(price)
     elif _neg_price_pattern.search(price) is not None:
         print(price[1:])
         return -1 * Decimal(price[1:])
@@ -45,10 +46,13 @@ def _convert_date(date_field):
 
 
 def _convert_posted(posted_field):
-        return posted_field == "posted"
+    """Posted or focasted."""
+
+    return posted_field == "posted"
 
 
 def _convert_category(category_field):
+    """Description to user category."""
 
     return category_field  # TODO
 
@@ -59,9 +63,13 @@ class Usaa(Parser):
     INSTITUTION = "usaa"
     DELIMITER = ","
 
-    # MAGIC NUMBER per usaa format
-    FIELD_COLS = [0, 2, 4, 5, 6]
-    FIELD_NAMES = ["posted", "date", "description", "category", "amount"]
+    FIELD_NAME_TO_INDEX = {  # MAGIC column indices according to USAA
+        "posted": 0,
+        "date": 2,
+        "description": 4,
+        "category": 5,
+        "amount": 6,
+    }
     FIELD_CONVERTERS = {
         "posted": _convert_posted,
         "date": _convert_date,
@@ -69,56 +77,147 @@ class Usaa(Parser):
         "amount": _convert_price,
     }
     # MAGIC NUMBER map to TransacationHistory columns
-    FIELD_2_TRANSACTION = {
+    _FIELD_2_TRANSACTION = {
         "date": TransactionColumns.DATE.name,
         "amount": TransactionColumns.AMOUNT.name,
         "description": TransactionColumns.DESCRIPTION.name,
         "category": TransactionColumns.CATEGORY.name,
     }
+    ACCOUNT = 9999
 
     @classmethod
-    def is_date_valid(cls, start, stop):
-        """True if this parser should be used for the date provided.
+    def field_2_transaction(cls):
+        """Input column name to our standard column names."""
 
-        Args:
-            start (datetime.datetime): begin date of transactions.
-            stop (datetime.datetime): end date of transactions.
+        return cls._FIELD_2_TRANSACTION
+
+    def parse(self):
+        """Return the cleaned data.
+
+        Returns:
+            (pandas.DataFrame): frame with TransactionColumns column names
         """
 
-        # MAGIC NUMBER currently only QA'd for 2019 and newer
-        return start >= datetime.date(2019, 1, 1)
+        if not self.is_file_parsable(self.filepath):
+            raise ValueError("cannot parse input file, invalid implementation {}:  {}"
+                            .format(self.__class__.__name__, self.filepath))
+
+        frame = self._parse_textfile()
+        frame = self._remove_unconfirmed_transactions(frame)
+        frame = self._remap_column_names(frame)
+        return frame
+
+    @staticmethod
+    def _remove_unconfirmed_transactions(frame):
+        """Remove transactions that haven't cleared."""
+
+        frame.drop(frame[frame.posted == False].index, inplace=True)
+        return frame
 
     def _parse_textfile(self):
         """Read file into a data frame."""
 
+        field_names = list(self.FIELD_NAMES_TO_COLS.keys())
+        field_indices = list(self.FIELD_NAMES_TO_COLS.values())
         frame = pd.read_csv(
             self.history_filepath,
-            header=None,  # MAGIC NUMBER file has no header line
+            header=None,  # MAGIC file has no header line
             delimiter=self.DELIMITER,
-            usecols=self.FIELD_COLS,
-            names=self.FIELD_NAMES,
+            usecols=field_indices,
+            names=field_indices,
             converters=self.FIELD_CONVERTERS,
         )
-        # remove incomplete transactions
-        frame.drop(frame[frame.posted == False].index, inplace=True)
-
         return frame
 
-    def _transaction_history(self, frame):
+    def _remap_column_names(self, frame):
         """Convert custom columns to TransactionHistory."""
 
         # frame[TransactionColumns.BANK.name] = self.INSTITUTION
         # frame[TransactionColumns.ACCOUNT.name] = None  # NOTE reconsider this feature
-        frame.rename(columns=self.FIELD_2_TRANSACTION, inplace=True)
+        frame.rename(columns=self._FIELD_2_TRANSACTION, inplace=True)
         frame[TransactionColumns.CHECK_NO.name] = None
         return frame
 
-    def parse(self):
+    @classmethod
+    def is_file_parsable(cls, filepath, beginning=None):
+        """True if this parser can decode the input file.
 
-        self.logger.info("parsing %s at  %s", self.INSTITUTION, self.history_filepath)
-        frame = self._parse_textfile()
-        frame = self._transaction_history(frame)
-        # FUTURE refine & map categories
-        print(frame)
+        Args:
+            filepath(str): path to input data
+            beginning(str):  first few lines of the raw data, skip reading file if not None
+        Raises:
+            FileNotFoundError: file does not exist
+            IOError: file not readable or etc.
+        """
 
-        return None
+        super().is_file_parsable(filepath)
+
+        # MAGIC USAA doesn't use a header and the first line will do
+        lines = [l for l in cls.yield_header(filepath, rows=1)]
+        try:
+            first_line = lines[0]
+        except IndexError:
+            logging.error("file line count is 0:  %s" % filepath)
+            return False
+
+        # NOTE b/c USAA does not use a header, check a few properties of the data
+        return all([
+            cls.check_column_count(first_line), 
+            cls.check_date_column(first_line),
+            cls.check_amount_column(first_line),
+        ])
+
+    @classmethod
+    def check_column_count(cls, line):
+        """True if the input file has the right column count."""
+
+        cols = line.count(cls.DELIMITER)
+        expected = 7  # MAGIC USAA convention, not all are populated though
+        return cols == expected
+
+    @classmethod
+    def check_date_column(cls, line):
+        """True if the date was parsed succesfully."""
+
+        try:
+            date_val = cls.get_field(line, "date")
+        except (ValueError, IndexError, KeyError):
+            return False
+        else:
+            return date_val is not None
+
+    @classmethod
+    def check_amount_column(cls, line):
+        """True if the amount was parsed succesfully."""
+
+        try:
+            price_val = cls.get_field(line, "amount")
+        except (ValueError, IndexError, KeyError):
+            return False
+        return price_val is not None
+
+    @classmethod
+    def get_field(cls, line, column_name):
+        """Extract parsed field from a line of the input file.
+
+        Raises:
+            KeyError: invalid column name
+            IndexError: index for column missing in line
+            ValueError: date not parsed correctly
+        """
+
+        fields = line.split(cls.DELIMITER)
+        index = cls.FIELD_NAME_TO_INDEX[column_name]
+        try:
+            field = fields[index]
+            converter = cls.FIELD_CONVERTERS[column_name]
+        except IndexError as i_err:
+            logging.error("can't parse line for %s, index is missing: %s"
+                          % (column_name, i_err))
+            raise i_err
+        except KeyError as k_err:
+            logging.error("can't parse line for %s, converter is missing: %s"
+                          % (column_name, k_err))
+            raise k_err
+        return converter(field)
+

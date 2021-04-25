@@ -11,6 +11,7 @@ import tempfile
 import pytest
 
 from banking.bbt import Bbt
+from banking.usaa import Usaa
 
 FAKE_BBT_TRANSACTIONS="""Date,Transaction Type,Check Number,Description,Amount,Daily Posted Balance
 01/01/2020,Credit,,LEGIT EMPLOYER SALARY,$+1000,$0.00
@@ -22,10 +23,10 @@ FAKE_BBT_TRANSACTIONS="""Date,Transaction Type,Check Number,Description,Amount,D
 
 
 FAKE_USAA_TRANSACTIONS="""forecasted,,01/01/2020,,FUNDS TRANSFER,Uncategorized,-3.50
-posted,,01/02/2020,,LEGIT EMPLOYER SALARY,Paychecks/Salary,--1000
+posted,,01/02/2020,,LEGIT EMPLOYER SALARY,Paychecks/Salary,1000
 posted,,01/03/2020,,LEGIT WASTE SERVICE,Utilities,-20.25
 posted,,01/04/2020,,LEGIT FOOD SERVICE,Groceries,-35.56
-posted,,01/10/2020,,INTEREST PAID,Interest,--0.05
+posted,,01/10/2020,,INTEREST PAID,Interest,0.05
 posted,,01/11/2020,,LEGIT FOOD SERVICE,Groceries,-122.25
 """
 
@@ -66,12 +67,36 @@ def temp_data(prefix=None, suffix=".csv", data=None):
         yield file.name  # CAVEAT opening again by caller my not work in Windows?
 
 
-@pytest.fixture
+@contextmanager
 def bbt_file():
-    """Filepath to fake data."""
+    """Filepath to fake BBT data."""
 
     prefix = Bbt.FILE_PREFIX + str(Bbt.ACCOUNT)
     data = FAKE_BBT_TRANSACTIONS
     with temp_data(prefix=prefix, suffix=".csv", data=data) as path:
         yield path
 
+
+@pytest.fixture
+def bbt_file_fixture():
+    """Pytest fixture to filepath to fake BBT data."""
+
+    with bbt_file() as file:
+        yield file
+
+
+@contextmanager
+def usaa_file():
+    """Filepath to fake USAA data."""
+
+    data = FAKE_USAA_TRANSACTIONS
+    with temp_data(suffix=".csv", data=data) as path:
+        yield path
+
+
+@pytest.fixture
+def usaa_file_fixture():
+    """Pytest fixture to filepath to fake USAA data."""
+
+    with usaa_file() as file:
+        yield file

@@ -125,6 +125,59 @@ class ParserImpl(Parser):
         }
         return _col2convert
 
+    @classmethod
+    def check_header(cls, filepath, header=None, row=0, delim=','):
+        """True if all the expected field names are in the header.
+
+        Used to select a parser for an input file based on the header contents.
+
+        Args:
+            filepath(str): path to input data file
+            header(str): header line, read file if None
+            row(int): row index of the header line (zero based)
+            delim(str): char delimiter
+        Returns:
+            (bool): true if header has all the expected fields
+        """
+
+        if row < 0:
+            raise ValueError("row index of %i is < 0" % row)
+
+        if header is None:
+            line = [l for l in cls.yield_header(filepath, rows=row)][row]
+        else:
+            line = str(header).split(delim)
+
+        # BUG multiline header not handled!
+        matched = all([h in line for h in cls.field_names()])
+        return matched
+
+    @classmethod
+    def is_file_parsable(cls, filepath, beginning=None):
+        """True if this parser can decode the input file.
+
+        Used to select a parser for an input file based on the filepath and header.
+
+        Args:
+            filepath(str): path to input data
+            beginning(str):  first few lines of the raw data, skip reading file if not None
+        Raises:
+            FileNotFoundError: file does not exist
+            IOError: file not readable or etc.
+        """
+
+        if not os.path.isfile(filepath):
+            raise file_dne_exc(filepath)
+
+        if not cls._check_filename(filepath):
+            return False
+
+        # BUG splitting multiple lines not tested & no input arg for header row!
+        if beginning is not None:
+            beginning = beginning.split('\n')[0]
+
+        return cls.check_header(filepath, beginning)
+
 
 @pytest.fixture
 def temp_valid_input_file():

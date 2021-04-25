@@ -22,16 +22,16 @@ from banking.bbt import _convert_price, _convert_date, _convert_check
 from banking.bbt import _convert_posted_balance
 from banking.utils import file_dne_exc
 from banking.utils import TransactionColumns, TransactionCategories
-from banking.test_utils import bbt_file, FAKE_BBT_TRANSACTIONS
+from banking.test_utils import bbt_file_fixture, FAKE_BBT_TRANSACTIONS
 
 LOGGER = logging.getLogger(__name__)
 coloredlogs.install(level=logging.DEBUG)
 
 
 @pytest.fixture
-def bbt_instance(bbt_file):
+def bbt_instance(bbt_file_fixture):
 
-    yield Bbt(bbt_file)
+    yield Bbt(bbt_file_fixture)
 
 
 @pytest.fixture
@@ -153,11 +153,11 @@ def test_check_filename_reject():
     assert not Bbt._check_filename(bad_filename)
 
 
-def test_parse(bbt_file):
+def test_parse(bbt_file_fixture):
     """Does a normal file get parsed?"""
 
-    assert Bbt.is_file_parsable(bbt_file)
-    frame = Bbt(bbt_file).parse()
+    assert Bbt.is_file_parsable(bbt_file_fixture)
+    frame = Bbt(bbt_file_fixture).parse()
     rows, cols = frame.shape
     # MAGIC minus 1 for the header
     assert rows == FAKE_BBT_TRANSACTIONS.count('\n') - 1

@@ -13,7 +13,7 @@ import pytest
 from banking.parser import Parser
 from banking.parser_factory import ParserFactory
 from banking.bbt import Bbt
-from banking.test_utils import bbt_file
+from banking.test_utils import bbt_file_fixture
 
 LOGGER = logging.getLogger(__name__)
 coloredlogs.install(level=logging.DEBUG)
@@ -31,20 +31,21 @@ def test_init_no_throw(factory):
     pass
 
 
-def test_from_file_onefile(factory, bbt_file):
+def test_from_file_onefile(factory, bbt_file_fixture):
     """Does it select the parser for a file, from filepath?"""
 
-    parser = factory.from_file(bbt_file)
+    parser = factory.from_file(bbt_file_fixture)
     assert isinstance(parser, Bbt)
 
 
-def test_from_directory_onefile(factory, bbt_file):
+def test_from_directory_onefile(factory, bbt_file_fixture):
     """Does it select the parser for a file, from directory?"""
 
-    parent_dir = os.path.dirname(bbt_file)
+    parent_dir = os.path.dirname(bbt_file_fixture)
     parsers = [p for p in factory.from_directory(parent_dir)]
     assert len(parsers) == 1
     assert isinstance(parsers[0], Bbt)
+
 
 
 
