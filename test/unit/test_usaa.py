@@ -6,13 +6,15 @@ Test USAA Parser implementation.
 
 import logging
 from decimal import Decimal
-from datetime import date
+import datetime
 import pytest
 
 from banking.usaa import Usaa, _convert_price, _convert_date
 from banking.utils import TransactionColumns
 from banking.test_utils import FAKE_USAA_TRANSACTIONS
 from banking.test_utils import usaa_file, usaa_file_fixture
+from banking.test_utils import temp_data, bbt_file_fixture
+
 
 FAKE_USAA_TRANSACTIONS_BAD_="""forecasted,,01/01/2020,,FUNDS TRANSFER,Uncategorized,-3.50
 posted,,01/02/2020,,LEGIT EMPLOYER SALARY,Paychecks/Salary,1000
@@ -25,6 +27,13 @@ posted,,01/11/2020,,LEGIT FOOD SERVICE,Groceries,-122.25
 FAKE_USAA_GOOD_LINE_PLUS = "posted,,01/11/2020,,LEGIT FOOD SERVICE,Groceries,123.45"
 FAKE_USAA_GOOD_LINE_MINUS = "posted,,01/11/2020,,LEGIT CREDIT,Groceries,-123.45"
 FAKE_USAA_BAD_LINE = "not-posted,,01%11%2020,,LEGIT FOOD SERVICE,Groceries,xx123.45"
+
+
+@pytest.fixture
+def usaa_instance(usaa_file_fixture):
+    """An instance of Usaa."""
+
+    yield Usaa(usaa_file_fixture)
 
 
 def test_convert_price_pos():
@@ -59,7 +68,7 @@ def test_reject_alpha():
 def test_convert_date():
     """Does a valid date get converted?"""
 
-    assert date(2020,1,2) == _convert_date("01/02/2020")
+    assert datetime.date(2020,1,2) == _convert_date("01/02/2020")
 
 
 @pytest.mark.skip(reason="work in progress")
@@ -70,7 +79,7 @@ def test_category_no_throw():
 
 
 def test_init():
-    """Does initializatin succeed?"""
+    """Does initialization succeed?"""
 
     with usaa_file() as path:
         Usaa(path)
@@ -117,4 +126,44 @@ def test_check_date_reject():
     """Does a bad date value fail?"""
 
     assert not Usaa.check_date_column(FAKE_USAA_BAD_LINE)
+
+
+def test_is_file_parsable(usaa_file_fixture):
+    """Does a good file pass the check?"""
+
+    assert Usaa.is_file_parsable(usaa_file_fixture)
+
+
+def test_is_file_parsable_reject():
+
+    data = FAKE_USAA_BAD_LINE
+    with temp_data(prefix=None, suffix=".csv", data=data) as path:
+        assert not Usaa.is_file_parsable(path)
+
+
+def test_is_file_parsable_bbt(bbt_file_fixture):
+
+    assert not Usaa.is_file_parsable(bbt_file_fixture)
+
+
+def test_get_field_date():
+    """Is a date parsed correctly for a line?
+
+    NB the 'date' column is used to validate an input file, so it should be tested
+    """
+
+    # MAGIC should match the fake value
+    expected = datetime.datetime.strptime("01/11/2020", "%m/%d/%Y").date()
+    assert expected == Usaa.get_field(FAKE_USAA_GOOD_LINE_PLUS, Usaa._DATE_COL_NAME)
+
+
+def test_get_field_amount():
+    """Is an amount parsed correctly for a line?
+
+    NB the 'amount' column is used to validate an input file, so it should be tested
+    """
+
+    # MAGIC should match the fake value
+    expected = Decimal('123.45')
+    assert expected == Usaa.get_field(FAKE_USAA_GOOD_LINE_PLUS, Usaa._AMOUNT_COL_NAME)
 

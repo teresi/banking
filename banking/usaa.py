@@ -32,7 +32,6 @@ def _convert_price(price):
     if _pos_price_pattern.search(price) is not None:
         return Decimal(price)
     elif _neg_price_pattern.search(price) is not None:
-        print(price[1:])
         return -1 * Decimal(price[1:])
     else:
         logging.error("cannot convert price:  %s" % price)
@@ -63,6 +62,8 @@ class Usaa(Parser):
     INSTITUTION = "usaa"
     DELIMITER = ","
 
+    _DATE_COL_NAME = "date"  # MAGIC our convention, should match FIELD_NAME_TO_INDEX
+    _AMOUNT_COL_NAME = "amount"  # MAGIC our convention, should match FIELD_NAME_TO_INDEX
     FIELD_NAME_TO_INDEX = {  # MAGIC column indices according to USAA
         "posted": 0,
         "date": 2,
@@ -171,8 +172,10 @@ class Usaa(Parser):
     def check_column_count(cls, line):
         """True if the input file has the right column count."""
 
-        cols = line.count(cls.DELIMITER)
+        # MAGIC n_cols = n_delim + 1 (no trailing delimiter)
+        cols = line.count(cls.DELIMITER) + 1
         expected = 7  # MAGIC USAA convention, not all are populated though
+        logging.debug("col count %i cvs %i" % (cols, expected))
         return cols == expected
 
     @classmethod
@@ -180,8 +183,8 @@ class Usaa(Parser):
         """True if the date was parsed succesfully."""
 
         try:
-            date_val = cls.get_field(line, "date")
-        except (ValueError, IndexError, KeyError):
+            date_val = cls.get_field(line, cls._DATE_COL_NAME)
+        except (ValueError, IndexError, KeyError) as exc:
             return False
         else:
             return date_val is not None
@@ -191,7 +194,7 @@ class Usaa(Parser):
         """True if the amount was parsed succesfully."""
 
         try:
-            price_val = cls.get_field(line, "amount")
+            price_val = cls.get_field(line, cls._AMOUNT_COL_NAME)
         except (ValueError, IndexError, KeyError):
             return False
         return price_val is not None
