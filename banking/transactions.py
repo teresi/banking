@@ -11,8 +11,12 @@ from banking.utils import TransactionColumns
 
 # FUTURE can we define the properties with a metaclass?
 class Transactions:
+    """Wrapped panda frame.
 
-    def __init__(self, frame, filepath):
+    Intended to provide meta data and helper functions.
+    """
+
+    def __init__(self, filepath, frame=None):
         """
 
         Args:
@@ -22,6 +26,11 @@ class Transactions:
         self.path = str(filepath)
         self.frame = frame
         # TODO validate input frame (are the columns present?)
+
+    def is_valid_frame(self):
+        """True if the frame is good."""
+
+        return self.frame is not None
 
     @property
     def date(self):

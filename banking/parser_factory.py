@@ -54,12 +54,11 @@ class ParserFactory:
         return parsers[0](filepath)
 
     def from_directory(self, root):
-        """Yield parsers for a directory."""
+        """Map parsers to the input files in a directory."""
 
         self._logger.info("reading history from {}".format(root))
+        # TODO filter files based on extension (e.g. csv/txt)
         paths_ = (p for p in os.scandir(root) if os.path.isfile(p))
         paths = (p.path for p in paths_)  # posix.DirEntry --> str
-        parsers = (self.from_file(p) for p in paths)
-        return (p for p in parsers if p)  # remove None entries
-
-
+        file_to_parsers = {p: self.from_file(p) for p in paths}
+        return file_to_parsers

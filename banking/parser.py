@@ -120,7 +120,7 @@ class Parser:
 
         frame_raw = self.parse_textfile(header_to_converter=self.COL_2_CONVERTER)
         frame_mapped = self.remap_cols(frame_raw)
-        return Transactions(frame_mapped, self.filepath)
+        return Transactions(self.filepath, frame=frame_mapped)
 
     @classmethod
     @abstractmethod

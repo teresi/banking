@@ -107,7 +107,7 @@ class Usaa(Parser):
         frame = self._parse_textfile()
         frame = self._remove_unconfirmed_transactions(frame)
         frame = self._remap_column_names(frame)
-        return Transactions(frame, self.filepath)
+        return Transactions(self.filepath, frame=frame)
 
     @staticmethod
     def _remove_unconfirmed_transactions(frame):

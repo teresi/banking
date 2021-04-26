@@ -144,8 +144,7 @@ class Bbt(Parser):
         frame = frame.astype({
             TransactionColumns.CHECK_NO.name: np.int16
         })
-        transactions = Transactions(frame, self.filepath)
-        return transactions
+        return Transactions(self.filepath, frame=frame)
 
     @classmethod
     def _check_filename(cls, filepath):

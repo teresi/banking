@@ -144,20 +144,12 @@ def test_from_file_onefile(factory, bbt_file_fixture):
     assert isinstance(parser, Bbt)
 
 
-def test_from_directory_onefile(factory, bbt_file_fixture):
-    """Does it select the parser for a file, from directory?"""
-
-    parent_dir = os.path.dirname(bbt_file_fixture)
-    parsers = [p for p in factory.from_directory(parent_dir)]
-    assert len(parsers) == 1
-    assert isinstance(parsers[0], Bbt)
-
-
 def test_from_directory(factory, fake_files_fixture):
     """Do the right number of parsers get produced given a directory?"""
 
     parent_dir = fake_files_fixture.dir.name
-    parsers = [p for p in factory.from_directory(parent_dir)]
+    file_to_parser = factory.from_directory(parent_dir)
+    parsers = file_to_parser.values()
     expected = sum(1 for _ in fake_files_fixture.files())
     assert expected == len(parsers)
 
