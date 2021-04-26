@@ -318,7 +318,7 @@ def test_remap_populated(parser):
 def test_parse_sum(parser):
     """Does the `parse` function return the right amount?"""
 
-    frame = parser.parse()
+    frame = parser.parse().frame
     total = frame[TransactionColumns.AMOUNT.name].sum()
     assert total == 1000-42
 
@@ -336,14 +336,14 @@ def test_parse_reject():
 def test_fill_bank(parser):
     """Does the bank name get populated?"""
 
-    frame = parser.parse()
+    frame = parser.parse().frame
     assert all(frame[TransactionColumns.BANK.name] == parser.INSTITUTION)
 
 
 def test_fill_account(parser):
     """Does the bank account get populated?"""
 
-    frame = parser.parse()
+    frame = parser.parse().frame
     assert all(frame[TransactionColumns.ACCOUNT.name] == parser.ACCOUNT)
 
 

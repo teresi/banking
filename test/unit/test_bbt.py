@@ -38,7 +38,7 @@ def bbt_instance(bbt_file_fixture):
 def bbt_frame(bbt_instance):
     """Parsed data frame from fake data."""
 
-    frame = bbt_instance.parse()
+    frame = bbt_instance.parse().frame
     yield frame
 
 
@@ -157,7 +157,7 @@ def test_parse(bbt_file_fixture):
     """Does a normal file get parsed?"""
 
     assert Bbt.is_file_parsable(bbt_file_fixture)
-    frame = Bbt(bbt_file_fixture).parse()
+    frame = Bbt(bbt_file_fixture).parse().frame
     rows, cols = frame.shape
     # MAGIC minus 1 for the header
     assert rows == FAKE_BBT_TRANSACTIONS.count('\n') - 1
@@ -201,12 +201,12 @@ def test_convert_category_sanity_check(bbt_frame):
 def test_fill_bank(bbt_instance):
     """Does the bank name get populated?"""
 
-    frame = bbt_instance.parse()
+    frame = bbt_instance.parse().frame
     assert all(frame[TransactionColumns.BANK.name] == bbt_instance.INSTITUTION)
 
 
 def test_fill_account(bbt_instance):
     """Does the bank account get populated?"""
 
-    frame = bbt_instance.parse()
+    frame = bbt_instance.parse().frame
     assert all(frame[TransactionColumns.ACCOUNT.name] == bbt_instance.ACCOUNT)

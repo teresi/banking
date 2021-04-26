@@ -18,6 +18,7 @@ from decimal import Decimal
 
 from banking.parser import Parser
 from banking.utils import TransactionColumns, TransactionCategories
+from banking.transactions import Transactions
 
 
 _pos_price_pattern = re.compile(r"^\d+")
@@ -106,7 +107,7 @@ class Usaa(Parser):
         frame = self._parse_textfile()
         frame = self._remove_unconfirmed_transactions(frame)
         frame = self._remap_column_names(frame)
-        return frame
+        return Transactions(frame, self.filepath)
 
     @staticmethod
     def _remove_unconfirmed_transactions(frame):
@@ -209,6 +210,8 @@ class Usaa(Parser):
             ValueError: date not parsed correctly
         """
 
+        # FUTURE this might be useful for other Parser implementations
+        # refactor to generic solution?
         fields = line.split(cls.DELIMITER)
         index = cls.FIELD_NAME_TO_INDEX[column_name]
         try:

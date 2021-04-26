@@ -17,6 +17,7 @@ import pandas as pd
 from banking.parser import Parser
 from banking.utils import TransactionColumns
 from banking.utils import TransactionCategories as Cats
+from banking.transactions import Transactions
 
 
 _pos_price_pattern = re.compile(r"^\(\$")
@@ -138,12 +139,13 @@ class Bbt(Parser):
             (pandas.DataFrame): frame with TransactionColumns column names
         """
 
-        frame = super().parse()
+        frame = super().parse().frame
         frame = self._fill_categories(frame)
         frame = frame.astype({
             TransactionColumns.CHECK_NO.name: np.int16
         })
-        return frame
+        transactions = Transactions(frame, self.filepath)
+        return transactions
 
     @classmethod
     def _check_filename(cls, filepath):

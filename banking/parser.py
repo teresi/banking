@@ -16,6 +16,7 @@ import pandas as pd
 import numpy as np
 
 from banking.utils import file_dne_exc, TransactionColumns
+from banking.transactions import Transactions
 
 
 class Parser:
@@ -119,7 +120,7 @@ class Parser:
 
         frame_raw = self.parse_textfile(header_to_converter=self.COL_2_CONVERTER)
         frame_mapped = self.remap_cols(frame_raw)
-        return frame_mapped
+        return Transactions(frame_mapped, self.filepath)
 
     @classmethod
     @abstractmethod
