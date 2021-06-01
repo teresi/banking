@@ -147,8 +147,8 @@ class Usaa(Parser):
     def _remap_column_names(self, frame):
         """Convert custom columns to TransactionHistory."""
 
-        # frame[TransactionColumns.BANK.name] = self.INSTITUTION
-        # frame[TransactionColumns.ACCOUNT.name] = None  # NOTE reconsider this feature
+        frame[TransactionColumns.BANK.name] = self.INSTITUTION
+        frame[TransactionColumns.ACCOUNT.name] = self.ACCOUNT
         frame.rename(columns=self._FIELD_2_TRANSACTION, inplace=True)
         frame[TransactionColumns.CHECK_NO.name] = None
         return frame
@@ -209,7 +209,7 @@ class Usaa(Parser):
 
     @classmethod
     def check_column_count(cls, line):
-        """True if the input file has the right column count."""
+        """True if the input file has the expected column count."""
 
         # MAGIC n_cols = n_delim + 1 (no trailing delimiter)
         cols = line.count(cls.DELIMITER) + 1
