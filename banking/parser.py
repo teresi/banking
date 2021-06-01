@@ -164,6 +164,8 @@ class Parser:
         if not os.path.isfile(filepath):
             raise file_dne_exc(filepath)
 
+        # FUTURE this reads as utf-8; it might need to read as bytes here
+        # and delay decoding, so as to not assume the file encoding here
         with open(filepath, 'r') as handle:
             lines = handle.readlines(max_bytes_per_row)
             for i, line in enumerate(lines):

@@ -6,6 +6,8 @@ Helper functions and data for testing.
 """
 
 from contextlib import contextmanager
+from itertools import chain
+import os
 import tempfile
 
 import pytest
@@ -100,3 +102,80 @@ def usaa_file_fixture():
 
     with usaa_file() as file:
         yield file
+
+
+class FakeFiles:
+    """Input files for testing."""
+    # FUTURE register parser/fake data on runtime instead of hard coded here
+
+    def __init__(self, n_bbt=2, n_usaa=2):
+        """Initialize.
+
+        Args:
+            n_bbt(int): how many bbt files to create
+            n_usaa(int): how many usaa files to create
+        """
+
+        self.n_bbt = n_bbt
+        self.n_usaa = n_usaa
+
+        self._bbt_files = []
+        self._usaa = []
+        self.dir = None
+
+    def file_paths(self):
+        """List of paths to the files.
+
+        Raises:
+            RuntimeError: files have not yet been instantiated, use context mgr
+        """
+
+        return [f.name for f in self.files()]
+
+    def files(self):
+        """List of the files.
+
+        Raises:
+            RuntimeError: files have not yet been instantiated, use context mgr
+        """
+
+        if self.dir is None:
+            raise RuntimeError("enter this instance prior to accessing the files")
+
+        return [f for f in chain(self._bbt_files, self._usaa_files)]
+
+    def __enter__(self):
+        """Context manager begin."""
+
+        self.dir = tempfile.TemporaryDirectory()
+
+        bbt_prefix = Bbt.FILE_PREFIX + str(Bbt.ACCOUNT)
+        bbt_data = FAKE_BBT_TRANSACTIONS
+        self._bbt_files = [self._write(bbt_data, bbt_prefix) for i in range(self.n_bbt)]
+
+        usaa_data = FAKE_USAA_TRANSACTIONS
+        self._usaa_files = [self._write(usaa_data) for i in range(self.n_usaa)]
+
+        return self
+
+    def _write(self, data, prefix=None, suffix=".csv"):
+        """A file with data."""
+
+        file = tempfile.NamedTemporaryFile(
+            dir=self.dir.name,
+            prefix=prefix,
+            suffix=suffix,
+            mode='w+',  # MAGIC writing strings
+            delete=False,  # MAGIC Parser will read/close, so don't delete there
+        )
+        file.write(data)
+        file.seek(0)
+        return file
+
+    def __exit__(self, exc_type, exc_val, exc_trace):
+        """Context manager end."""
+
+        map(lambda f: f.close(), self.files())
+        map(os.remove, self.file_paths())
+        self.dir.cleanup()
+        self.dir = None

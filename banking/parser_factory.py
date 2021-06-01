@@ -33,11 +33,13 @@ class ParserFactory:
     def from_file(self, filepath):
         """Parser from filepath."""
 
+        self._logger.debug("reading header of %s" % filepath)
         parsers = []
         # MAGIC experimental, enough rows to approximate content format
         start_of_file = [line for line in Parser.yield_header(filepath, rows=8)]
         lines = '\n'.join(start_of_file)
         for name, klass in self._parsers.items():
+            self._logger.debug("try %s for file %s" % (klass, filepath))
             if klass.is_file_parsable(filepath, beginning=lines):
                 parsers.append(klass)
 
@@ -62,3 +64,7 @@ class ParserFactory:
         paths = (p.path for p in paths_)  # posix.DirEntry --> str
         file_to_parsers = {p: self.from_file(p) for p in paths}
         return file_to_parsers
+
+    # TODO yield files based on extension white list
+    def _filter_file_by_ext(dir, extensions):
+        pass

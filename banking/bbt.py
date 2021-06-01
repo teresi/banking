@@ -19,7 +19,7 @@ from banking.utils import TransactionColumns
 from banking.utils import TransactionCategories as Cats
 from banking.transactions import Transactions
 
-
+# TODO need class level logger, root logger too confusing
 _pos_price_pattern = re.compile(r"^\(\$")
 _neg_price_pattern = re.compile(r"^\$\+")
 
@@ -105,6 +105,9 @@ def _convert_posted_balance(balance):
         return None
 
 
+# TODO convert class methods to instance for better debugging?
+# need to know what the file is for better debug calls
+# also it would be useful to know why a particular file can't be parsed
 class Bbt(Parser):
     """Reads BBT transactions into a common format."""
 
@@ -123,6 +126,7 @@ class Bbt(Parser):
         "Amount": _convert_price,
         "Daily Posted Balance": _convert_posted_balance
     }
+    # TODO register account numbers, more intuitive than redefinition
     ACCOUNT = 9999          # MAGIC last four digits of bbt account number
     FILE_PREFIX = "Acct_"   # MAGIC bbt convention for their files
 
@@ -214,10 +218,15 @@ class Bbt(Parser):
             raise file_dne_exc(filepath)
 
         if not cls._check_filename(filepath):
+            logging.debug("%s cannot parse b/c filename mismatch: %s" % (cls.__name__, filepath))
             return False
 
         # BUG splitting multiple lines not tested & no input arg for header row!
         if beginning is not None:
             beginning = beginning.split('\n')[0]
 
-        return cls.check_header(filepath, beginning)
+        is_parsable = cls.check_header(filepath, beginning)
+
+        logging.debug("can %s parse this file? %s, %s" %
+                      (cls.__name__, "true" if is_parsable else "false", filepath))
+        return is_parsable

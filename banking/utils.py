@@ -70,6 +70,7 @@ class TransactionCategories(Enum):
     SALARY = auto()
     HOUSING = auto()
     RETIREMENT = auto()
+    COMMUNICATIONS = auto()
     INVESTMENTS = auto()
     MEDICAL = auto()
     VEHICLES = auto()

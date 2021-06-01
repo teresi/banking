@@ -42,6 +42,14 @@ def _convert_price(price):
 def _convert_date(date_field):
     """String to date."""
 
+    date_field = date_field.strip('"')
+
+    # un posted entries are 1/01/2020
+    # posted entries are 01/01/2020
+    sub_fields = date_field.split("/")
+    if len(sub_fields) == 3 and len(sub_fields[0]) == 1:
+        date_field = "0" + date_field
+
     return datetime.datetime.strptime(str(date_field), "%m/%d/%Y").date()
 
 
@@ -78,7 +86,7 @@ class Usaa(Parser):
         "category": _convert_category,
         "amount": _convert_price,
     }
-    # MAGIC NUMBER map to TransacationHistory columns
+    # MAGIC NUMBER map to expected column names
     _FIELD_2_TRANSACTION = {
         "date": TransactionColumns.DATE.name,
         "amount": TransactionColumns.AMOUNT.name,
@@ -111,22 +119,26 @@ class Usaa(Parser):
 
     @staticmethod
     def _remove_unconfirmed_transactions(frame):
-        """Remove transactions that haven't cleared."""
+        """Remove transactions that haven't cleared.
 
-        frame.drop(frame[frame.posted == False].index, inplace=True)
+        USAA labels transactions as "posted" if it has been confirmed / cleared.
+        Removing unposted debits / credits filters out the temporary information.
+        """
+
+        frame.drop(frame.loc[frame['posted'] == False].index, inplace=True)
         return frame
 
     def _parse_textfile(self):
         """Read file into a data frame."""
 
-        field_names = list(self.FIELD_NAMES_TO_COLS.keys())
-        field_indices = list(self.FIELD_NAMES_TO_COLS.values())
+        field_names = list(self.FIELD_NAME_TO_INDEX.keys())
+        field_indices = list(self.FIELD_NAME_TO_INDEX.values())
         frame = pd.read_csv(
-            self.history_filepath,
+            self.filepath,
             header=None,  # MAGIC file has no header line
             delimiter=self.DELIMITER,
             usecols=field_indices,
-            names=field_indices,
+            names=field_names,
             converters=self.FIELD_CONVERTERS,
         )
         return frame
@@ -163,11 +175,16 @@ class Usaa(Parser):
             return False
 
         # NOTE b/c USAA does not use a header, check a few properties of the data
-        return all([
+        checks = [
             cls.check_column_count(first_line), 
             cls.check_date_column(first_line),
             cls.check_amount_column(first_line),
-        ])
+        ]
+        is_parsable = all(checks)
+        logging.debug("can parse? col / date / amount: {}".format(checks))
+        logging.debug("can %s parse this file? %s, %s" %
+                      (cls.__name__, "true" if is_parsable else "false", filepath))
+        return is_parsable
 
     @classmethod
     def check_column_count(cls, line):
@@ -176,7 +193,6 @@ class Usaa(Parser):
         # MAGIC n_cols = n_delim + 1 (no trailing delimiter)
         cols = line.count(cls.DELIMITER) + 1
         expected = 7  # MAGIC USAA convention, not all are populated though
-        logging.debug("col count %i cvs %i" % (cols, expected))
         return cols == expected
 
     @classmethod
@@ -186,6 +202,7 @@ class Usaa(Parser):
         try:
             date_val = cls.get_field(line, cls._DATE_COL_NAME)
         except (ValueError, IndexError, KeyError) as exc:
+            logging.warning(exc)
             return False
         else:
             return date_val is not None
@@ -218,8 +235,8 @@ class Usaa(Parser):
             field = fields[index]
             converter = cls.FIELD_CONVERTERS[column_name]
         except IndexError as i_err:
-            logging.error("can't parse line for %s, index is missing: %s"
-                          % (column_name, i_err))
+            logging.error("can't parse line for %s, index is missing: %s\n\t%s"
+                          % (column_name, i_err, line))
             raise i_err
         except KeyError as k_err:
             logging.error("can't parse line for %s, converter is missing: %s"
