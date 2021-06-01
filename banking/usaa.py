@@ -11,6 +11,7 @@ import logging
 from decimal import Decimal
 from datetime import date
 import os
+from functools import partial
 
 import numpy as np
 import pandas as pd
@@ -164,6 +165,12 @@ class Usaa(Parser):
             IOError: file not readable or etc.
         """
 
+        # TODO can we redirect the loc calls from here so they aren't shown
+        # since we're just testing if parsable and an error message 
+        # would give the wrong impression
+        # or restructure the way our logger works, maybe accept a logger in
+        # the subsequent calls
+
         super().is_file_parsable(filepath)
 
         # MAGIC USAA doesn't use a header and the first line will do
@@ -173,16 +180,30 @@ class Usaa(Parser):
         except IndexError:
             logging.error("file line count is 0:  %s" % filepath)
             return False
+        is_parsable = cls._run_parse_checks(first_line, filepath)
 
         # NOTE b/c USAA does not use a header, check a few properties of the data
-        checks = [
-            cls.check_column_count(first_line), 
-            cls.check_date_column(first_line),
-            cls.check_amount_column(first_line),
+        return is_parsable
+
+    @classmethod
+    def _run_parse_checks(cls, line, filepath, logger=None):
+        """Check if file is parsable by running various checks on the header.
+
+        Args:
+            first_line(str): first line of file contents
+            filepath(str): path to input 
+            logger(logging.Logger): logger instance
+        """
+
+        check_funcs = [
+            cls.check_column_count,
+            cls.check_date_column,
+            cls.check_amount_column,
         ]
-        is_parsable = all(checks)
-        logging.debug("can parse? col / date / amount: {}".format(checks))
-        logging.debug("can %s parse this file? %s, %s" %
+        checks = [partial(check, line) for check in check_funcs]
+        is_parsable = all((check() for check in checks))  # NB short circuit
+        logger = logger or logging.getLogger(cls.__name__)
+        logger.debug("can %s parse this file? %s, %s" %
                       (cls.__name__, "true" if is_parsable else "false", filepath))
         return is_parsable
 

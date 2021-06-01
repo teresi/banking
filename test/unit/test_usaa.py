@@ -8,6 +8,7 @@ import logging
 from decimal import Decimal
 import datetime
 import pytest
+import os
 
 from banking.usaa import Usaa, _convert_price, _convert_date
 from banking.utils import TransactionColumns
@@ -16,6 +17,8 @@ from banking.test_utils import usaa_file, usaa_file_fixture
 from banking.test_utils import temp_data, bbt_file_fixture
 
 
+LOGGER = logging.getLogger(os.path.basename(__file__))
+
 FAKE_USAA_TRANSACTIONS_BAD_="""forecasted,,01/01/2020,,FUNDS TRANSFER,Uncategorized,-3.50
 posted,,01/02/2020,,LEGIT EMPLOYER SALARY,Paychecks/Salary,1000
 posted,,01/03/2020,,LEGIT WASTE SERVICE,Utilities,-20.25
@@ -23,10 +26,13 @@ posted,,01/04/2020,,LEGIT FOOD SERVICE,Groceries,-35.56
 posted,,01/10/2020,,INTEREST PAID,Interest,0.05
 posted,,01/11/2020,,LEGIT FOOD SERVICE,Groceries,-122.25
 """
-
 FAKE_USAA_GOOD_LINE_PLUS = "posted,,01/11/2020,,LEGIT FOOD SERVICE,Groceries,123.45"
 FAKE_USAA_GOOD_LINE_MINUS = "posted,,01/11/2020,,LEGIT CREDIT,Groceries,-123.45"
 FAKE_USAA_BAD_LINE = "not-posted,,01%11%2020,,LEGIT FOOD SERVICE,Groceries,xx123.45"
+FAKE_USAA_EXTRA_COL = "posted,null,01/11/2020,null,detail,category,price,EXTRA COLUMN"
+FAKE_USAA_MISSING_COL = "posted,null,01/11/2020,null,detail,category"
+FAKE_USAA_BAD_DATE = "posted,null,X_BAD_DATE_X,null,detail,category,-42.00"
+FAKE_USAA_BAD_AMOUNT = "posted,null,02/12/2020,null,detail,category,X_BAD_AMOUNT_X"
 
 
 @pytest.fixture
@@ -135,6 +141,7 @@ def test_is_file_parsable(usaa_file_fixture):
 
 
 def test_is_file_parsable_reject():
+    """Does a file with bad contents get rejected?"""
 
     data = FAKE_USAA_BAD_LINE
     with temp_data(prefix=None, suffix=".csv", data=data) as path:
@@ -142,6 +149,7 @@ def test_is_file_parsable_reject():
 
 
 def test_is_file_parsable_bbt(bbt_file_fixture):
+    """Does a file meant for another parser get rejected?"""
 
     assert not Usaa.is_file_parsable(bbt_file_fixture)
 
@@ -155,6 +163,28 @@ def test_get_field_date():
     # MAGIC should match the fake value
     expected = datetime.datetime.strptime("01/11/2020", "%m/%d/%Y").date()
     assert expected == Usaa.get_field(FAKE_USAA_GOOD_LINE_PLUS, Usaa._DATE_COL_NAME)
+
+
+def test_run_parse_checks_col_count():
+    """Does a bad column count get rejected?"""
+
+    path = "FAKE_PATH_FOR_TESTING"
+    assert not Usaa._run_parse_checks(FAKE_USAA_EXTRA_COL, path, LOGGER)
+    assert not Usaa._run_parse_checks(FAKE_USAA_MISSING_COL, path, LOGGER)
+
+
+def test_run_parse_checks_date_col():
+    """Does a bad date value get rejected?"""
+
+    path = "FAKE_PATH_FOR_TESTING"
+    assert not Usaa._run_parse_checks(FAKE_USAA_BAD_DATE, path, LOGGER)
+
+
+def test_run_parse_checks_amount_col():
+    """Does a bad debit/credit value get rejected?"""
+
+    path = "FAKE_PATH_FOR_TESTING"
+    assert not Usaa._run_parse_checks(FAKE_USAA_BAD_AMOUNT, path, LOGGER)
 
 
 def test_get_field_amount():
