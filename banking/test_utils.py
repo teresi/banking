@@ -73,7 +73,7 @@ def temp_data(prefix=None, suffix=".csv", data=None):
 def bbt_file():
     """Filepath to fake BBT data."""
 
-    prefix = Bbt.FILE_PREFIX + str(Bbt.ACCOUNT)
+    prefix = Bbt.FILE_PREFIX + str(Bbt.ACCOUNT) + "_"
     data = FAKE_BBT_TRANSACTIONS
     with temp_data(prefix=prefix, suffix=".csv", data=data) as path:
         yield path

@@ -136,7 +136,8 @@ def test_reject_filename():
 def test_check_filename():
     """Does a valid filename pass?"""
 
-    assert Bbt._check_filename(expected_filename())
+    path = os.path.join("/", "arbitrary", "dir", expected_filename())
+    assert Bbt._check_filename(path)
 
 
 def test_check_filename_path():
@@ -151,6 +152,21 @@ def test_check_filename_reject():
 
     bad_filename = rand_string(4) + expected_filename()
     assert not Bbt._check_filename(bad_filename)
+
+
+def test_scrape_account():
+    """Does the account number get extracted from the filename?"""
+
+    path = os.path.join("/", "arbitrary", "dir", expected_filename())
+    account = Bbt._scrape_account_number(path)
+    assert Bbt.ACCOUNT == int(account)
+
+
+def test_scrape_account_no_match():
+    """Does the account number get extracted for a bad filename?"""
+
+    path = os.path.join("/", "arbitrary", "dir", Bbt.FILE_PREFIX + "not 4 digits")
+    assert Bbt._scrape_account_number(path) is None
 
 
 def test_parse(bbt_file_fixture):

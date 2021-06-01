@@ -126,8 +126,10 @@ class Bbt(Parser):
         "Amount": _convert_price,
         "Daily Posted Balance": _convert_posted_balance
     }
-    # TODO register account numbers, more intuitive than redefinition
+    # TODO move ACCOUNT to instance variable
     ACCOUNT = 9999          # MAGIC last four digits of bbt account number
+    # MAGIC bbt has files of Acct_1234_01_31_2020_to_02_28_2020
+    _FILENAME_PATTERN = re.compile(r"^(Acct_)([0-9]{4})_")
     FILE_PREFIX = "Acct_"   # MAGIC bbt convention for their files
 
     @classmethod
@@ -161,9 +163,28 @@ class Bbt(Parser):
         """
 
         file_name = os.path.basename(filepath)
-        # MAGIC bbt convention to have 'Acct_XXXX' as prefix
-        prefix = "Acct_" + str(cls.ACCOUNT)
-        return file_name.startswith(prefix)
+        match = cls._FILENAME_PATTERN.search(file_name)
+        return match is not None
+
+    @classmethod
+    def _scrape_account_number(cls, filepath):
+        """Last 4 digits of account number given the input filepath.
+
+        Args:
+            str(filepath): path or filename for the input data file (e.g. csv)
+        Returns:
+            str: account number
+            bool: true if the filename matches one this parser should use
+        """
+
+        file_name = os.path.basename(filepath)
+        match = cls._FILENAME_PATTERN.search(file_name)
+        fields = None if not match else match.groups()
+        if not fields:
+            return None
+        account = None if len(fields) < 2 else fields[1]
+        return account
+
 
     def _fill_categories(self, frame):
         """Fill category entries given the description values."""

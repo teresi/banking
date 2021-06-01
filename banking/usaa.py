@@ -94,6 +94,7 @@ class Usaa(Parser):
         "description": TransactionColumns.DESCRIPTION.name,
         "category": TransactionColumns.CATEGORY.name,
     }
+    # TODO move ACCOUNT to instance variable
     ACCOUNT = 9999
 
     @classmethod
