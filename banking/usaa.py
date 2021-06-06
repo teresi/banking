@@ -103,6 +103,11 @@ class Usaa(Parser):
 
         return cls._FIELD_2_TRANSACTION
 
+    @classmethod
+    def parse_account_number(cls, filepath):
+
+        return 9999
+
     def parse(self):
         """Return the cleaned data.
 

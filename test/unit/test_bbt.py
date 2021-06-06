@@ -22,7 +22,8 @@ from banking.bbt import _convert_price, _convert_date, _convert_check
 from banking.bbt import _convert_posted_balance
 from banking.utils import file_dne_exc
 from banking.utils import TransactionColumns, TransactionCategories
-from banking.test_utils import bbt_file_fixture, FAKE_BBT_TRANSACTIONS
+from banking.test_utils import bbt_file_fixture
+from banking.test_utils import FAKE_BBT_TRANSACTIONS, FAKE_BBT_ACCOUNT
 
 LOGGER = logging.getLogger(__name__)
 coloredlogs.install(level=logging.DEBUG)
@@ -31,7 +32,9 @@ coloredlogs.install(level=logging.DEBUG)
 @pytest.fixture
 def bbt_instance(bbt_file_fixture):
 
-    yield Bbt(bbt_file_fixture)
+    bbt = Bbt(bbt_file_fixture)
+    print(bbt.account)
+    yield bbt
 
 
 @pytest.fixture
@@ -46,7 +49,7 @@ def expected_filename():
     """A valid input filename for the parser."""
 
     # MAGIC our convention, starts with 
-    return Bbt.FILE_PREFIX + str(Bbt.ACCOUNT) + '_' + rand_string(8)
+    return Bbt.FILE_PREFIX + str(FAKE_BBT_ACCOUNT) + '_' + rand_string(8)
 
 
 def rand_string(count):
@@ -101,7 +104,6 @@ def test_reject_check():
     """Does a missing check get converted?"""
 
     assert _convert_check('') is -1
-
 
 @pytest.mark.skip(reason="work in progress")
 def test_convert_categories():
@@ -158,15 +160,21 @@ def test_scrape_account():
     """Does the account number get extracted from the filename?"""
 
     path = os.path.join("/", "arbitrary", "dir", expected_filename())
-    account = Bbt._scrape_account_number(path)
-    assert Bbt.ACCOUNT == int(account)
+    account = Bbt.parse_account_number(path)
+    assert FAKE_BBT_ACCOUNT == int(account)
 
 
 def test_scrape_account_no_match():
     """Does the account number get extracted for a bad filename?"""
 
     path = os.path.join("/", "arbitrary", "dir", Bbt.FILE_PREFIX + "not 4 digits")
-    assert Bbt._scrape_account_number(path) is None
+    assert Bbt.parse_account_number(path) is None
+
+
+def test_account_number(bbt_instance):
+    """Does the account number get set on init?"""
+
+    assert bbt_instance.account == FAKE_BBT_ACCOUNT
 
 
 def test_parse(bbt_file_fixture):
@@ -195,7 +203,7 @@ def test_check_number(bbt_frame):
     # MAGIC hand calc from above fake data
     expected = [-1, -1, -1, -1, 301]
     assert all(expected == bbt_frame[TransactionColumns.CHECK_NO.name])
-    
+
 
 def test_convert_category_sanity_check(bbt_frame):
     """Do the categories get mapped for our fake data?
@@ -225,4 +233,4 @@ def test_fill_account(bbt_instance):
     """Does the bank account get populated?"""
 
     frame = bbt_instance.parse().frame
-    assert all(frame[TransactionColumns.ACCOUNT.name] == bbt_instance.ACCOUNT)
+    assert all(frame[TransactionColumns.ACCOUNT.name] == bbt_instance.account)

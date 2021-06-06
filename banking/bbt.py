@@ -126,8 +126,6 @@ class Bbt(Parser):
         "Amount": _convert_price,
         "Daily Posted Balance": _convert_posted_balance
     }
-    # TODO move ACCOUNT to instance variable
-    ACCOUNT = 9999          # MAGIC last four digits of bbt account number
     # MAGIC bbt has files of Acct_1234_01_31_2020_to_02_28_2020
     _FILENAME_PATTERN = re.compile(r"^(Acct_)([0-9]{4})_")
     FILE_PREFIX = "Acct_"   # MAGIC bbt convention for their files
@@ -167,7 +165,7 @@ class Bbt(Parser):
         return match is not None
 
     @classmethod
-    def _scrape_account_number(cls, filepath):
+    def parse_account_number(cls, filepath):
         """Last 4 digits of account number given the input filepath.
 
         Args:
@@ -183,8 +181,7 @@ class Bbt(Parser):
         if not fields:
             return None
         account = None if len(fields) < 2 else fields[1]
-        return account
-
+        return int(account)
 
     def _fill_categories(self, frame):
         """Fill category entries given the description values."""

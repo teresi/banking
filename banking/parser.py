@@ -53,12 +53,13 @@ class Parser:
             logger(logging.Logger): logger, create new if None
         """
 
-        self.filepath = filepath
-        self.logger = logger or logging.getLogger(__name__)
-
-        if not os.path.isfile(self.filepath):
+        if not os.path.isfile(filepath):
             raise FileNotFoundError(
-                    errno.ENOENT, os.strerror(errno.ENOENT), self.filepath)
+                    errno.ENOENT, os.strerror(errno.ENOENT), filepath)
+
+        self.logger = logger or logging.getLogger(__name__)
+        self.filepath = filepath
+        self.account = self.parse_account_number(self.filepath)
 
     @property
     @abstractmethod
@@ -66,13 +67,6 @@ class Parser:
         """The name of the bank."""
 
         return str()
-
-    @property
-    @abstractmethod
-    def ACCOUNT(cls):
-        """The account number of the banking services."""
-
-        return int(-1)
 
     @classmethod
     @abstractmethod
@@ -99,10 +93,22 @@ class Parser:
     def COL_2_CONVERTER(self):
         """Dictionary of functions to convert column values from input file.
 
-        Returns: dict(str: callable(str))
+        Returns:
+            dict(str: callable(str))
         """
 
         return {}
+
+    @classmethod
+    @abstractmethod
+    def parse_account_number(csl, filepath):
+        """Find the account number for the input file.
+
+        Returns:
+            (int): the account, typically last four digits of the account
+        """
+
+        return -1
 
     @abstractmethod
     def parse(self):
@@ -192,7 +198,7 @@ class Parser:
             dtype={TransactionColumns.CHECK_NO.name: np.int16}
         )
         frame[TransactionColumns.BANK.name] = self.INSTITUTION
-        frame[TransactionColumns.ACCOUNT.name] = self.ACCOUNT
+        frame[TransactionColumns.ACCOUNT.name] = self.account
         return frame
 
     @classmethod

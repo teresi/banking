@@ -68,9 +68,13 @@ class ParserImpl(Parser):
     }
     _FIELD_NAMES = ["date", "amount", "note"]
 
-    ACCOUNT = 8888  # MAGIC fake acount
+    _FAKE_ACCOUNT = 8888
     FILE_PREFIX_PART = "Acct_"  # MAGIC fake file formatting
-    FILE_PREFIX = FILE_PREFIX_PART + str(ACCOUNT)
+
+    @classmethod
+    def file_prefix(cls):
+
+        return cls.FILE_PREFIX_PART + str(cls._FAKE_ACCOUNT)
 
     @classmethod
     def field_names(cls):
@@ -108,7 +112,7 @@ class ParserImpl(Parser):
     def _check_filename(cls, filepath):
         """False if the filename is unexpected for this parser."""
 
-        account_header = cls.FILE_PREFIX
+        account_header = cls.FILE_PREFIX_PART + str(cls.parse_account_number(filepath))
         file_name = os.path.basename(filepath)
         matched = account_header in file_name
         if not matched:
@@ -178,12 +182,18 @@ class ParserImpl(Parser):
 
         return cls.check_header(filepath, beginning)
 
+    @classmethod
+    def parse_account_number(cls, filepath):
+
+        # TODO parse file path intead of constant
+        return 8888  # MAGIC arbitrary
+
 
 @pytest.fixture
 def temp_valid_input_file():
 
     with temp_data(
-        prefix=ParserImpl.FILE_PREFIX,
+        prefix=ParserImpl.file_prefix(),
         suffix='.csv',
         data=FAKE_TRANSACTIONS) as file_name:
 
@@ -231,7 +241,8 @@ def test_check_header_read_file():
     """Is a good header accepted?"""
 
     data = ",".join(ParserImpl.field_names())
-    with temp_data(prefix=ParserImpl.FILE_PREFIX, suffix=".csv", data=data) as file:
+    file_prefix = ParserImpl.file_prefix()
+    with temp_data(prefix=file_prefix, suffix=".csv", data=data) as file:
         assert ParserImpl.check_header(file, header=data, row=0) == True
         assert ParserImpl.is_file_parsable(file) == True
 
@@ -256,7 +267,8 @@ def test_is_parsable_good_header():
     """Is a file with a good filename and header accepted?"""
 
     data = ",".join(ParserImpl.field_names())
-    with temp_data(prefix=ParserImpl.FILE_PREFIX, suffix=".csv", data=data) as file:
+    file_prefix = ParserImpl.file_prefix()
+    with temp_data(prefix=file_prefix, suffix=".csv", data=data) as file:
         assert ParserImpl.is_file_parsable(file) == True
 
 
@@ -344,7 +356,7 @@ def test_fill_account(parser):
     """Does the bank account get populated?"""
 
     frame = parser.parse().frame
-    assert all(frame[TransactionColumns.ACCOUNT.name] == parser.ACCOUNT)
+    assert all(frame[TransactionColumns.ACCOUNT.name] == parser.account)
 
 
 if __name__ == "__main__":

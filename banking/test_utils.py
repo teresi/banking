@@ -15,6 +15,8 @@ import pytest
 from banking.bbt import Bbt
 from banking.usaa import Usaa
 
+FAKE_BBT_ACCOUNT=9876  # MAGIC arbitrary last 4 digits of a fake account
+
 FAKE_BBT_TRANSACTIONS="""Date,Transaction Type,Check Number,Description,Amount,Daily Posted Balance
 01/01/2020,Credit,,LEGIT EMPLOYER SALARY,$+1000,$0.00
 01/02/2020,Debit,,KROGER STORE DEBIT CARD,($42),$958
@@ -73,7 +75,7 @@ def temp_data(prefix=None, suffix=".csv", data=None):
 def bbt_file():
     """Filepath to fake BBT data."""
 
-    prefix = Bbt.FILE_PREFIX + str(Bbt.ACCOUNT) + "_"
+    prefix = Bbt.FILE_PREFIX + str(FAKE_BBT_ACCOUNT) + "_"
     data = FAKE_BBT_TRANSACTIONS
     with temp_data(prefix=prefix, suffix=".csv", data=data) as path:
         yield path
@@ -149,7 +151,7 @@ class FakeFiles:
 
         self.dir = tempfile.TemporaryDirectory()
 
-        bbt_prefix = Bbt.FILE_PREFIX + str(Bbt.ACCOUNT)
+        bbt_prefix = Bbt.FILE_PREFIX + str(FAKE_BBT_ACCOUNT)
         bbt_data = FAKE_BBT_TRANSACTIONS
         self._bbt_files = [self._write(bbt_data, bbt_prefix) for i in range(self.n_bbt)]
 
