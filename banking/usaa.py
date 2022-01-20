@@ -22,18 +22,20 @@ from banking.utils import TransactionColumns, TransactionCategories
 from banking.transactions import Transactions
 
 
-_pos_price_pattern = re.compile(r"^\d+")
+_pos_price_pattern = re.compile(r"^--\d+")
 _neg_price_pattern = re.compile(r"^-\d+")
 
 
 def _convert_price(price):
     """Dollar to Decimal."""
 
-    # TODO replace substrint call w/ word boundaries?
+    # TODO replace substring call w/ word boundaries?
     # TODO catch Decimal exceptions / reject bad formats
     if _pos_price_pattern.search(price) is not None:
-        return Decimal(price)
+        # MAGIC remove the '--' prefix
+        return Decimal(price[2:])
     elif _neg_price_pattern.search(price) is not None:
+        # MAGIC remove the '-' prefix
         return -1 * Decimal(price[1:])
     else:
         logging.error("cannot convert price:  %s" % price)
@@ -94,8 +96,7 @@ class Usaa(Parser):
         "description": TransactionColumns.DESCRIPTION.name,
         "category": TransactionColumns.CATEGORY.name,
     }
-    # TODO move ACCOUNT to instance variable
-    ACCOUNT = 9999
+    _FILENAME_PATTERN = re.compile(r"^([uU][sS][aA][aA]_)([0-9]{4})_")
 
     @classmethod
     def field_2_transaction(cls):
@@ -105,8 +106,23 @@ class Usaa(Parser):
 
     @classmethod
     def parse_account_number(cls, filepath):
+        """Infer acccount from filename.
 
-        return 9999
+         NB since USAA doesn't name their files well,
+         this is left to the one downloading to conform to format: usaa_XXXX_...
+         """
+
+        # FUTURE this was copied from bbt, but it's not generalized enough
+        # to put in the base class. can we specify the target field in the pattern
+        # so that we don't need to know how many fields the regex has
+        # then use that as the generic function that takes a regex pattern?
+        filename = os.path.basename(filepath)
+        match = cls._FILENAME_PATTERN.search(filename)
+        fields = None if not match else match.groups()
+        if not fields:
+            return None
+        account = None if len(fields) < 2 else fields[1]
+        return int(account)
 
     def parse(self):
         """Return the cleaned data.
@@ -154,7 +170,7 @@ class Usaa(Parser):
         """Convert custom columns to TransactionHistory."""
 
         frame[TransactionColumns.BANK.name] = self.INSTITUTION
-        frame[TransactionColumns.ACCOUNT.name] = self.ACCOUNT
+        frame[TransactionColumns.ACCOUNT.name] = self.account
         frame.rename(columns=self._FIELD_2_TRANSACTION, inplace=True)
         frame[TransactionColumns.CHECK_NO.name] = None
         return frame

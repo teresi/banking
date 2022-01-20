@@ -127,7 +127,7 @@ class Bbt(Parser):
         "Daily Posted Balance": _convert_posted_balance
     }
     # MAGIC bbt has files of Acct_1234_01_31_2020_to_02_28_2020
-    _FILENAME_PATTERN = re.compile(r"^(Acct_)([0-9]{4})_")
+    _FILENAME_PATTERN = re.compile(r"^([aA]cct_)([0-9]{4})_")
     FILE_PREFIX = "Acct_"   # MAGIC bbt convention for their files
 
     @classmethod

@@ -38,7 +38,7 @@ def fake_files_fixture():
 
 def test_fake_files_context():
     """Do the files get created?"""
-    
+
     fake_files = FakeFiles()
     with fake_files as my_files:
         for path in my_files.file_paths():

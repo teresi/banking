@@ -47,24 +47,46 @@ class ParserFactory:
             self._logger.error("cannot parse, no valid parser for:  {}"
                                .format(filepath))
             return None
+
         if len(parsers) != 1:
             msg = ("multiple parsers available for file %s:  %s"
                    % (filepath, parsers))
             self._logger.critical(msg)
             raise RuntimeError(msg)
 
+        # MAGIC 0 b/c there can only be one parser now
         return parsers[0](filepath)
+
+    def _scrape_files(self, root):
+        """Recursivly yield all files from directory, excluding directories.
+
+        Yields:
+            (os.DirEntry) objects
+        """
+
+        for file in os.scandir(root):
+            if not file.is_dir():
+                yield file
+            else:
+                yield from self._scrape_files(file.path)
 
     def from_directory(self, root):
         """Map parsers to the input files in a directory."""
 
         self._logger.info("reading history from {}".format(root))
-        # TODO filter files based on extension (e.g. csv/txt)
-        paths_ = (p for p in os.scandir(root) if os.path.isfile(p))
-        paths = (p.path for p in paths_)  # posix.DirEntry --> str
-        file_to_parsers = {p: self.from_file(p) for p in paths}
+        # TODO filter files based on extension (e.g. csv/txt)?
+        paths_ = (p for p in self._scrape_files(root))
+        paths = [p.path for p in paths_]  # posix.DirEntry --> str
+        self._logger.debug("found: %s" % paths)
+        if not paths:
+            msg = "no input files found in %s, cannot parse transaction data"
+            self._logger.warning(msg % root)
+        file_to_parsers = {_f: self.from_file(_f) for _f in paths}
+        file_to_parsers = {_f: _p for _f, _p in file_to_parsers.items() if _p}
+
+        self._logger.debug("file to parsers: {}".format(file_to_parsers))
         return file_to_parsers
 
-    # TODO yield files based on extension white list
+    # TODO yield files based on extension white list?
     def _filter_file_by_ext(dir, extensions):
         pass
